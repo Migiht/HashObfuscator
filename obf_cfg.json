@@ -1,0 +1,110 @@
+{
+  "crashCRC": false,
+  "debug": false,
+  "parallel": false,
+  "caching": false,
+  "inputPath": "./out/Mindustry.jar",
+  "outputPath": "output.jar",
+  "libs": [],
+  "map": {
+    "GLOBAL": {
+      "enabled": true,
+      "exclusions": {},
+      "params": {}
+    },
+    "CLASS_RENAME": {
+      "enabled": false,
+      "exclusions": {},
+      "params": {}
+    },
+    "CLASS_PUBLIC": {
+      "enabled": false,
+      "exclusions": {},
+      "params": {}
+    },
+    "INNER_REMOVER": {
+      "enabled": false,
+      "exclusions": {},
+      "params": {}
+    },
+    "METHOD_RENAME": {
+      "enabled": true,
+      "exclusions": {},
+      "params": {}
+    },
+    "METHOD_PUBLIC": {
+      "enabled": false,
+      "exclusions": {},
+      "params": {}
+    },
+    "METHOD_SHUFFLE": {
+      "enabled": false,
+      "exclusions": {},
+      "params": {}
+    },
+    "METHOD_STATIC_MOVE": {
+      "enabled": false,
+      "exclusions": {},
+      "params": {}
+    },
+    "INDY_RENAME": {
+      "enabled": true,
+      "exclusions": {},
+      "params": {}
+    },
+    "FIELD_RENAME": {
+      "enabled": true,
+      "exclusions": {
+        "net/jpountz/lz4": {
+          "access": "public static fucking deep"
+        }
+      },
+      "params": {}
+    },
+    "FIELD_PUBLIC": {
+      "enabled": false,
+      "exclusions": {},
+      "params": {}
+    },
+    "FIELD_SHUFFLE": {
+      "enabled": false,
+      "exclusions": {},
+      "params": {}
+    },
+    "FIELD_STATIC_MOVE": {
+      "enabled": false,
+      "exclusions": {},
+      "params": {}
+    },
+    "LOCAL_RENAME": {
+      "enabled": false,
+      "exclusions": {},
+      "params": {}
+    },
+    "DEBUG_CLEAR": {
+      "enabled": false,
+      "exclusions": {},
+      "params": {}
+    },
+    "REPACKAGER": {
+      "enabled": false,
+      "exclusions": {},
+      "params": {}
+    },
+    "STRING_REPLACE": {
+      "enabled": false,
+      "exclusions": {},
+      "params": {}
+    },
+    "STRING_DETACH": {
+      "enabled": false,
+      "exclusions": {},
+      "params": {}
+    },
+    "STRING_RANDOMIZE": {
+      "enabled": false,
+      "exclusions": {},
+      "params": {}
+    }
+  }
+}

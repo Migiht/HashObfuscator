@@ -1,0 +1,42 @@
+.button:pressed
+ {
+     -fx-background-color: #7a8286;
+ }
+ .button
+ {
+     -fx-border-color: #268fc7;
+     -fx-text-fill: #268fc7;
+     -fx-background-color: #393756;
+ }
+ .tf
+ {
+     -fx-text-fill: white;
+     -fx-border-color: #2bff00;
+     -fx-background-color: #393756;
+ }
+ .list
+ {
+    -fx-border-color: #2bff00;
+ }
+ .list-cell
+ {
+    -fx-background-color: #393756;
+    -fx-text-fill: white;
+ }
+ .list-cell:selected
+ {
+     -fx-background-color: #7a8286;
+ }
+ .block
+ {
+     -fx-border-color: #FF6800;
+     -fx-background-color: #393756;
+ }
+ .bg
+ {
+     -fx-background-color: #393756;
+ }
+ .slider .axis
+ {
+     -fx-tick-label-fill: white;
+ }
