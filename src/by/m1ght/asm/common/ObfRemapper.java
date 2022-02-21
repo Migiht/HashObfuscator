@@ -1,17 +1,12 @@
 package by.m1ght.asm.common;
 
 import by.m1ght.Obfuscator;
-import by.m1ght.transformer.Transformer;
 import by.m1ght.util.AsmUtil;
-import by.m1ght.util.UniqueStringGenerator;
-import by.m1ght.util.Util;
 import it.unimi.dsi.fastutil.HashCommon;
 import it.unimi.dsi.fastutil.objects.Object2ObjectMap;
 import it.unimi.dsi.fastutil.objects.Object2ObjectMaps;
 import it.unimi.dsi.fastutil.objects.Object2ObjectOpenHashMap;
 import org.objectweb.asm.commons.Remapper;
-import org.objectweb.asm.tree.ClassNode;
-import org.objectweb.asm.tree.MethodNode;
 
 import java.util.Map;
 import java.util.concurrent.ThreadLocalRandom;
@@ -28,9 +23,6 @@ public class ObfRemapper extends Remapper {
 
     private final Map<String, String> LDCNames = new Object2ObjectOpenHashMap<>();
 
-    private final Map<String, String> fieldOwners = new Object2ObjectOpenHashMap<>();
-    private final Map<String, String> methodOwners = new Object2ObjectOpenHashMap<>();
-
     public ObfRemapper(Obfuscator obfuscator) {
         this.obfuscator = obfuscator;
     }
@@ -39,7 +31,7 @@ public class ObfRemapper extends Remapper {
         LDCNames.putIfAbsent(string, null);
     }
 
-    public void putLDC(String old, String newName) {
+    public void replaceLDC(String old, String newName) {
         if (!LDCNames.isEmpty()) {
             if (LDCNames.replace(old, newName) == null) {
                 LDCNames.replace(AsmUtil.getAsmName(old), newName);
@@ -60,7 +52,7 @@ public class ObfRemapper extends Remapper {
     public void putClassName(String old, String newName) {
         classNames.put(old, newName);
 
-        putLDC(old, newName);
+        replaceLDC(old, newName);
     }
 
     public String mapMethodName(String owner, String name, String descriptor) {

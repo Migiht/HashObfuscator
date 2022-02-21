@@ -17,20 +17,6 @@ public class ObfMethodRemapper extends MethodRemapper {
         super(api, methodVisitor, remapper);
     }
 
-    @Override
-    public void visitFieldInsn(int opcode, String owner, String name, String descriptor) {
-        super.visitFieldInsn(opcode, owner, name, descriptor);
-    }
-
-    @Override
-    public void visitInvokeDynamicInsn(String name, String descriptor, Handle bootstrapMethodHandle, Object... bootstrapMethodArguments) {
-        super.visitInvokeDynamicInsn(name, descriptor, bootstrapMethodHandle, bootstrapMethodArguments);
-    }
-
-    @Override
-    public void visitMethodInsn(int opcodeAndSource, String owner, String name, String descriptor, boolean isInterface) {
-        super.visitMethodInsn(opcodeAndSource, owner, name, descriptor, isInterface);
-    }
 
     @Override
     public void visitLdcInsn(Object value) {

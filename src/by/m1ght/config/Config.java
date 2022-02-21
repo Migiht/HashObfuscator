@@ -11,7 +11,6 @@ public final class Config {
     // Additionally
     public boolean crashCRC;
     public boolean debug;
-    public boolean parallel;
     public boolean caching; //More memory but lowest CPU usage
 
     // Files

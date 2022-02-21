@@ -78,7 +78,7 @@ public class ObfHasher {
 
             case NAME_HASH:
                 generated = UniqueStringGenerator.get(nameHash);
-                mapper.putLDC(name, generated);
+                mapper.replaceLDC(name, generated);
                 break;
 
             case NAME_DESC_HASH:

@@ -15,7 +15,7 @@ public class Starter
             config = Util.fromJson(Paths.get("obf_cfg.json"), config);
         } catch (Throwable exception) {
             LogUtil.error("Cannot load config, check example -> " + Paths.get("obf_cfg.json").toAbsolutePath());
-            Util.writeJson(Paths.get("config.json"), config);
+            Util.writeJson(Paths.get("obf_cfg.json"), config);
             System.exit(-1);
         }
         new Obfuscator(config).run();

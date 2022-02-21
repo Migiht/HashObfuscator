@@ -9,7 +9,7 @@ public final class UniqueStringGenerator {
     private static final char[] CHARSET_LOW = "abcdefghijklmnopqrstuvwxyz".toCharArray();
     private static final char[] CHARSET_UP = "ABCDEFGHIJKLMNOPQRSTUVWXYZ".toCharArray();
     private static final int TEMP_ARRAY_SIZE = 16;
-    private static final Long2ObjectMap<String> cache = Long2ObjectMaps.synchronize(new Long2ObjectOpenHashMap<>());
+    private static final Long2ObjectMap<String> GENERATOR_CACHE = Long2ObjectMaps.synchronize(new Long2ObjectOpenHashMap<>());
 
     public static void setCaching(boolean caching) {
         LogUtil.info("Generator caching: " + caching);
@@ -18,14 +18,14 @@ public final class UniqueStringGenerator {
 
     public static String get(int index) {
         if (caching) {
-            return cache.computeIfAbsent(index, (key) -> next0(index));
+            return GENERATOR_CACHE.computeIfAbsent(index, (key) -> next0(index));
         }
         return next0(index);
     }
 
     public static String get(long index) {
         if (caching) {
-            return cache.computeIfAbsent(index, (key) -> next0(index));
+            return GENERATOR_CACHE.computeIfAbsent(index, (key) -> next0(index));
         }
         return next0(index);
     }

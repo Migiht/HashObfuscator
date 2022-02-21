@@ -3,9 +3,7 @@ package by.m1ght.transformer.other;
 import by.m1ght.transformer.Transformer;
 import by.m1ght.transformer.TransformerType;
 import by.m1ght.util.AsmUtil;
-import org.objectweb.asm.tree.AbstractInsnNode;
 import org.objectweb.asm.tree.ClassNode;
-import org.objectweb.asm.tree.LdcInsnNode;
 import org.objectweb.asm.tree.MethodNode;
 
 public class LDCCache extends Transformer {

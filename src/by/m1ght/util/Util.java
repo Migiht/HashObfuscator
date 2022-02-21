@@ -50,9 +50,8 @@ public final class Util {
         char[] chars = Util.getStringChars(s1);
         if (chars.length > 0) {
             int length = chars.length;
-            for (int i = 0; i < length; ) {
+            for (int i = 0; i < length; ++i) {
                 offset = Byte.MAX_VALUE * offset + chars[i];
-                ++i;
             }
         }
         return (offset);
@@ -118,7 +117,7 @@ public final class Util {
     public static List<String> getDefaultJreLibs() {
         List<String> paths = new ArrayList<>();
         if (System.getProperty("java.home") != null) {
-            Path home = Paths.get(System.getProperty("java.home")).resolve("lib");
+            Path home = Paths.get(System.getProperty("java.home")).toAbsolutePath().resolve("lib");
 
             Path rt = home.resolve("rt.jar");
             if (Files.exists(rt)) {
