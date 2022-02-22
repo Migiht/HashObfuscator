@@ -11,6 +11,7 @@ import org.objectweb.asm.tree.*;
 import java.util.ArrayList;
 import java.util.List;
 
+//TODO repair
 public class StaticMethodMover extends Transformer {
 
     private final List<ClassNode> nodes = new ArrayList<>();

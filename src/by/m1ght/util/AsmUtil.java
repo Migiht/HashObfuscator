@@ -91,6 +91,7 @@ public final class AsmUtil {
         int index = desc.indexOf(')');
         int length = desc.length();
 
+        // Void check, if owner.methodName(...)V return V, else substr Ljava/lang/String; for example
         if (index + 2 != desc.length()) {
             index = index + 1;
             length = length - 1;

@@ -13,7 +13,6 @@ import by.m1ght.transformer.classnode.InnerClassRemover;
 import by.m1ght.transformer.field.FieldPublicAccesser;
 import by.m1ght.transformer.field.FieldRenamer;
 import by.m1ght.transformer.field.FieldShuffler;
-import by.m1ght.transformer.field.FieldStaticMover;
 import by.m1ght.transformer.local.LocalRenamer;
 import by.m1ght.transformer.method.*;
 import by.m1ght.transformer.other.DebugRemover;
@@ -98,7 +97,6 @@ public final class Obfuscator implements Runnable {
         transformers.add(new MethodPublicAccesser());
 
         transformers.add(new StaticMethodMover());
-        transformers.add(new FieldStaticMover());
 
         transformers.add(new MethodShuffler());
         transformers.add(new FieldShuffler());
@@ -289,29 +287,6 @@ public final class Obfuscator implements Runnable {
                 }
             }
         }
-
-        ObjectList<ClassNode> unmodifiable = ObjectLists.unmodifiable(nodeList);
-        for (Transformer transformer : transformers) {
-            transformer.finish(unmodifiable);
-        }
-
-
-        LogUtil.info("Process generated classes");
-        List<ClassNode> generated = new ArrayList<>();
-        for (Transformer transformer : transformers) {
-            generated.addAll(transformer.getGenerated());
-        }
-
-        for (Transformer transformer : transformers) {
-            for (int i = 0; i < generated.size(); i++) {
-                ClassNode node = generated.get(i);
-                if (transformer.isTransformGenerated() && transformer.canTransform(node)) {
-                    transformer.transform(node);
-                }
-            }
-        }
-
-        nodeList.addAll(generated);
 
         LogUtil.info("Save classes " + config.outputPath);
 

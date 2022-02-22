@@ -5,7 +5,6 @@ import by.m1ght.transformer.Transformer;
 import by.m1ght.transformer.TransformerType;
 import by.m1ght.util.AsmUtil;
 import by.m1ght.util.Util;
-import it.unimi.dsi.fastutil.objects.ObjectList;
 import org.objectweb.asm.tree.ClassNode;
 import org.objectweb.asm.tree.FieldNode;
 import org.objectweb.asm.tree.MethodNode;
@@ -17,7 +16,7 @@ public class FieldRenamer extends Transformer {
     @Override
     public void init(Obfuscator obf) {
         super.init(obf);
-        obf.mapper.fieldHasher.setType(config.getParam("generator_type"));
+        obf.mapper.fieldHasher.setType(config.params.get("generator_type"));
     }
 
     @Override
@@ -48,32 +47,31 @@ public class FieldRenamer extends Transformer {
     }
 
     @Override
-    public void finish(ObjectList<ClassNode> constNodeList) {
-        constNodeList.forEach(this::addSuperFields);
+    public TransformerType getType() {
+        return TransformerType.FIELD_RENAME;
     }
 
-    protected void addSuperFields(ClassNode node) {
-        ClassNode findIn = node;
+    public static class SuperRenamer extends FieldRenamer{
 
-        while (true) {
-            findIn = obfuscator.nodeByName.get(findIn.superName);
+        @Override
+        public void transform(ClassNode node) {
+            ClassNode findIn = node;
 
-            if (findIn == null) {
-                return;
-            }
+            while (true) {
+                findIn = obfuscator.nodeByName.get(findIn.superName);
 
-            if (!findIn.fields.isEmpty() && Util.noFlag(findIn.access, ACC_LIB)) {
-                for (FieldNode field : findIn.fields) {
-                    if (Util.noFlag(field.access, ACC_SKIPPED)) {
-                        obfuscator.mapper.fieldHasher.putReplaceOwner(findIn.name, node.name, field.name, field.desc);
+                if (findIn == null) {
+                    return;
+                }
+
+                if (!findIn.fields.isEmpty() && Util.noFlag(findIn.access, ACC_LIB)) {
+                    for (FieldNode field : findIn.fields) {
+                        if (Util.noFlag(field.access, ACC_SKIPPED)) {
+                            obfuscator.mapper.fieldHasher.putReplaceOwner(findIn.name, node.name, field.name, field.desc);
+                        }
                     }
                 }
             }
         }
-    }
-
-    @Override
-    public TransformerType getType() {
-        return TransformerType.FIELD_RENAME;
     }
 }

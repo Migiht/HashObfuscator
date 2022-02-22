@@ -23,7 +23,7 @@ public class MethodRenamer extends Transformer {
         super.init(obf);
         addToCache(Object.class);
         addToCache(Enum.class);
-        obf.mapper.methodHasher.setType(config.getParam("generator_type"));
+        obf.mapper.methodHasher.setType(config.params.get("generator_type"));
     }
 
     private void addToCache(Class<?> superClass) {
@@ -56,72 +56,20 @@ public class MethodRenamer extends Transformer {
         }
     }
 
-    @Override
-    public void finish(ObjectList<ClassNode> constNodeList) {
-        constNodeList.forEach(node -> {
-            addSuperMethods(node, node);
-            addInterfacesMethods(node, node);
-        });
-    }
-
-    protected void addInterfacesMethods(ClassNode original, ClassNode findIn) {
-        if (!findIn.interfaces.isEmpty()) {
-            for (String anInterface : findIn.interfaces) {
-                findIn = obfuscator.nodeByName.get(anInterface);
-
-                if (findIn == null) {
-                    continue;
-                }
-
-                if (!findIn.methods.isEmpty() && Util.noFlag(findIn.access, ACC_LIB)) {
-                    for (MethodNode method : findIn.methods) {
-                        if (Util.noFlag(method.access, ACC_SKIPPED)) {
-                            obfuscator.mapper.methodHasher.putReplaceOwner(findIn.name, original.name, method.name, method.desc);
-                        }
-                    }
-                }
-
-                addInterfacesMethods(original, findIn);
-            }
-        }
-    }
-
-    protected void addSuperMethods(ClassNode original, ClassNode findIn) {
-        while (true) {
-            findIn = obfuscator.nodeByName.get(findIn.superName);
-
-            if (findIn == null) {
-                return;
-            }
-
-            if (!findIn.methods.isEmpty() && Util.noFlag(findIn.access, ACC_LIB)) {
-                for (MethodNode method : findIn.methods) {
-                    if (Util.noFlag(method.access, ACC_SKIPPED)) {
-                        obfuscator.mapper.methodHasher.putReplaceOwner(findIn.name, original.name, method.name, method.desc);
-                    }
-                }
-            }
-            addInterfacesMethods(original, findIn);
-        }
-    }
-
     protected boolean isInterfaceMethod(ClassNode classNode, MethodNode method) {
-        if (!classNode.interfaces.isEmpty()) {
+        for (String anInterface : classNode.interfaces) {
+            classNode = obfuscator.nodeByName.get(anInterface);
 
-            for (String anInterface : classNode.interfaces) {
-                classNode = obfuscator.nodeByName.get(anInterface);
+            if (classNode == null) {
+                continue;
+            }
 
-                if (classNode == null) {
-                    continue;
-                }
+            if (Util.isFlag(classNode.access, ACC_LIB) && AsmUtil.containsSuperMethod(classNode, method.name)) {
+                return true;
+            }
 
-                if (Util.isFlag(classNode.access, ACC_LIB) && AsmUtil.containsSuperMethod(classNode, method.name)) {
-                    return true;
-                }
-
-                if (isInterfaceMethod(classNode, method)) {
-                    return true;
-                }
+            if (isInterfaceMethod(classNode, method)) {
+                return true;
             }
         }
         return false;
@@ -148,5 +96,54 @@ public class MethodRenamer extends Transformer {
     @Override
     public TransformerType getType() {
         return TransformerType.METHOD_RENAME;
+    }
+
+    public static class SuperRenamer extends MethodRenamer {
+        @Override
+        public void transform(ClassNode node) {
+            addSuperMethods(node, node);
+            addInterfacesMethods(node, node);
+        }
+
+        protected void addInterfacesMethods(ClassNode original, ClassNode findIn) {
+            if (!findIn.interfaces.isEmpty()) {
+                for (String anInterface : findIn.interfaces) {
+                    findIn = obfuscator.nodeByName.get(anInterface);
+
+                    if (findIn == null) {
+                        continue;
+                    }
+
+                    if (!findIn.methods.isEmpty() && Util.noFlag(findIn.access, ACC_LIB)) {
+                        for (MethodNode method : findIn.methods) {
+                            if (Util.noFlag(method.access, ACC_SKIPPED)) {
+                                obfuscator.mapper.methodHasher.putReplaceOwner(findIn.name, original.name, method.name, method.desc);
+                            }
+                        }
+                    }
+
+                    addInterfacesMethods(original, findIn);
+                }
+            }
+        }
+
+        protected void addSuperMethods(ClassNode original, ClassNode findIn) {
+            while (true) {
+                findIn = obfuscator.nodeByName.get(findIn.superName);
+
+                if (findIn == null) {
+                    return;
+                }
+
+                if (!findIn.methods.isEmpty() && Util.noFlag(findIn.access, ACC_LIB)) {
+                    for (MethodNode method : findIn.methods) {
+                        if (Util.noFlag(method.access, ACC_SKIPPED)) {
+                            obfuscator.mapper.methodHasher.putReplaceOwner(findIn.name, original.name, method.name, method.desc);
+                        }
+                    }
+                }
+                addInterfacesMethods(original, findIn);
+            }
+        }
     }
 }

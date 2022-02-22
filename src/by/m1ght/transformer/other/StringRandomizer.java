@@ -16,7 +16,7 @@ public class StringRandomizer extends Transformer {
     public void init(Obfuscator obf) {
         super.init(obf);
 
-        secret = Long.parseLong(config.params.getOrDefault("SECRET", String.valueOf(Long.MAX_VALUE)));
+        secret = Long.parseLong(config.params.getOrDefault("SECRET", String.valueOf(System.nanoTime())));
     }
 
     @Override

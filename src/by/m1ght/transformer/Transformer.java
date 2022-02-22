@@ -24,10 +24,6 @@ public abstract class Transformer implements Opcodes {
         this.config = new TransformerConfig();
     }
 
-    public boolean isTransformGenerated() {
-        return true;
-    }
-
     public abstract void transform(ClassNode node);
 
     public TransformerType getType() {
@@ -60,10 +56,4 @@ public abstract class Transformer implements Opcodes {
     public boolean canTransform(ClassNode owner, FieldNode field) {
         return config.canTransform(Util.hash(owner.name, field.name), field.access, field.visibleAnnotations);
     }
-
-    public List<ClassNode> getGenerated() {
-        return Collections.emptyList();
-    }
-
-    public void finish(ObjectList<ClassNode> constNodeList) {}
 }

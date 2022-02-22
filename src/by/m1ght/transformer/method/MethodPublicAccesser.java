@@ -18,11 +18,6 @@ public class MethodPublicAccesser extends Transformer {
     }
 
     @Override
-    protected boolean isTransformBaseMethod() {
-        return true;
-    }
-
-    @Override
     public TransformerType getType() {
         return TransformerType.METHOD_PUBLIC;
     }

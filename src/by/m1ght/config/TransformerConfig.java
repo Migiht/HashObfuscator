@@ -6,32 +6,28 @@ import it.unimi.dsi.fastutil.ints.IntObjectImmutablePair;
 import it.unimi.dsi.fastutil.ints.IntObjectPair;
 import it.unimi.dsi.fastutil.longs.Long2ObjectMap;
 import it.unimi.dsi.fastutil.longs.Long2ObjectOpenHashMap;
+import it.unimi.dsi.fastutil.objects.Object2ObjectMaps;
 import it.unimi.dsi.fastutil.objects.ObjectOpenHashSet;
 import it.unimi.dsi.fastutil.objects.ObjectSet;
 import org.objectweb.asm.tree.AnnotationNode;
 
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
 public final class TransformerConfig {
     public boolean enabled = false;
-
+    public Map<String, String> params = new HashMap<>();
     //Using only for gson parser, after clear
     public Map<String, Access2ExcludesPair> exclusions = new HashMap<>();
 
     public transient Long2ObjectMap<IntObjectPair<ObjectSet<String>>> runtimeExclusions = new Long2ObjectOpenHashMap<>();
 
-    public Map<String, String> params = new HashMap<>();
-
     public void applyConfig(TransformerConfig other) {
         this.enabled = other.enabled;
         this.params.putAll(other.params);
         this.runtimeExclusions.putAll(other.runtimeExclusions);
-    }
-
-    public String getParam(String type) {
-        return params.get(type);
     }
 
     public TransformerConfig compute() {
@@ -54,13 +50,10 @@ public final class TransformerConfig {
     }
 
     private IntObjectPair<ObjectSet<String>> computePair(Access2ExcludesPair pair) {
-
         int access = 0;
-
         ObjectSet<String> annotations = null;
 
         if (pair != null) {
-
             if (pair.left() != null && !pair.left().isEmpty()) {
                 access = pair.getAccess();
             }
@@ -68,9 +61,7 @@ public final class TransformerConfig {
             if (pair.right() != null && !pair.right().isEmpty()) {
                 annotations = new ObjectOpenHashSet<>(pair.getExcludes());
             }
-
         }
-
         return new IntObjectImmutablePair<>(access, annotations);
     }
 
@@ -95,7 +86,7 @@ public final class TransformerConfig {
         IntObjectPair<ObjectSet<String>> pair = runtimeExclusions.get(hash);
 
         if (pair != null) {
-
+            //if class/method/field access contains exclusion access
             if ((pair.leftInt() & access) == pair.leftInt() && pair.right() == null) {
                 return false;
             }

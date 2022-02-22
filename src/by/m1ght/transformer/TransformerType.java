@@ -16,7 +16,6 @@ public enum TransformerType {
     FIELD_RENAME,
     FIELD_PUBLIC,
     FIELD_SHUFFLE,
-    FIELD_STATIC_MOVE,
 
     LOCAL_RENAME,
 

@@ -9,7 +9,7 @@ import java.util.List;
 import java.util.Locale;
 import java.util.stream.Collectors;
 
-public class Access2ExcludesPair implements Pair<String, String> {
+public class Access2ExcludesPair {
     private final String access;
     private final String excludes;
 
@@ -29,15 +29,5 @@ public class Access2ExcludesPair implements Pair<String, String> {
 
     public List<String> getExcludes() {
         return Arrays.stream(excludes.split(" ")).map(s -> s.replace("@", "")).map(s -> 'L' + s + ';').collect(Collectors.toList());
-    }
-
-    @Override
-    public String left() {
-        return access;
-    }
-
-    @Override
-    public String right() {
-        return excludes;
     }
 }
