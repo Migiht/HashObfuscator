@@ -37,10 +37,7 @@ import java.nio.file.Paths;
 import java.util.*;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ThreadLocalRandom;
-import java.util.concurrent.atomic.AtomicInteger;
-import java.util.zip.GZIPInputStream;
 import java.util.zip.ZipEntry;
-import java.util.zip.ZipInputStream;
 import java.util.zip.ZipOutputStream;
 
 public final class Obfuscator implements Runnable {
@@ -57,21 +54,19 @@ public final class Obfuscator implements Runnable {
 
     public final ObfRemapper mapper = new ObfRemapper(this);
 
-    public AtomicInteger classNameGeneratorID = new AtomicInteger();
-
     public Obfuscator(Config cfg) {
         config = cfg;
         LogUtil.setDebugEnabled(cfg.debug);
         UniqueStringGenerator.setCaching(cfg.caching);
+        cfg.computeExcludes();
     }
 
     private void initTransformers() {
-        TransformerConfig global = config.map.get(TransformerType.GLOBAL).compute();
+        TransformerConfig global = config.transformerConfigMap.get(TransformerType.GLOBAL);
         for (Iterator<Transformer> iterator = transformers.iterator(); iterator.hasNext(); ) {
-
             Transformer worker = iterator.next();
 
-            TransformerConfig workerCfg = config.map.get(worker.getType());
+            TransformerConfig workerCfg = config.transformerConfigMap.get(worker.getType());
             if (workerCfg != null && workerCfg.enabled && global.enabled) {
                 worker.init(this);
             } else {
@@ -79,7 +74,7 @@ public final class Obfuscator implements Runnable {
                 continue;
             }
 
-            worker.applyConfig(config.map.get(worker.getType()).compute());
+            worker.applyConfig(config.transformerConfigMap.get(worker.getType()));
             worker.applyConfig(global);
         }
     }

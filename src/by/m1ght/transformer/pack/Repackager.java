@@ -12,7 +12,7 @@ public class Repackager extends Transformer {
     @Override
     public void init(Obfuscator obf) {
         super.init(obf);
-        newPackage = config.params.getOrDefault("PACKAGE", "");
+        newPackage = config.params.getOrDefault("package", "");
     }
 
     @Override

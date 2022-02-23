@@ -98,7 +98,13 @@ public class MethodRenamer extends Transformer {
         return TransformerType.METHOD_RENAME;
     }
 
-    public static class SuperRenamer extends MethodRenamer {
+    public static class SuperRenamer extends Transformer {
+
+        @Override
+        public TransformerType getType() {
+            return TransformerType.METHOD_RENAME;
+        }
+
         @Override
         public void transform(ClassNode node) {
             addSuperMethods(node, node);

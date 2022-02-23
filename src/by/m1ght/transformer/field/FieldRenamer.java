@@ -51,7 +51,12 @@ public class FieldRenamer extends Transformer {
         return TransformerType.FIELD_RENAME;
     }
 
-    public static class SuperRenamer extends FieldRenamer{
+    public static class SuperRenamer extends Transformer {
+
+        @Override
+        public TransformerType getType() {
+            return TransformerType.FIELD_RENAME;
+        }
 
         @Override
         public void transform(ClassNode node) {

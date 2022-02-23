@@ -2,7 +2,6 @@ package by.m1ght.gui;
 
 import by.m1ght.Obfuscator;
 import by.m1ght.config.Config;
-import by.m1ght.config.TransformerConfig;
 import by.m1ght.util.Util;
 import by.m1ght.util.IOUtil;
 import by.m1ght.util.LogUtil;
@@ -19,13 +18,11 @@ import javafx.stage.Modality;
 import javafx.stage.Stage;
 
 import java.io.File;
-import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.ArrayList;
 import java.util.List;
-import java.util.Map;
 import java.util.concurrent.CompletableFuture;
 import java.util.stream.Collectors;
 
@@ -102,22 +99,22 @@ public final class MainController {
         config.inputPath = inputPath.getText();
         config.outputPath = outputPath.getText();
 
-        config.map.get(TransformerType.METHOD_RENAME).enabled = ((CheckBox)root.lookup("#renameMethods")).isSelected();
-        config.map.get(TransformerType.METHOD_PUBLIC).enabled = ((CheckBox)root.lookup("#modifierMethods")).isSelected();
-        config.map.get(TransformerType.METHOD_SHUFFLE).enabled = ((CheckBox)root.lookup("#shuffleMethods")).isSelected();
-        config.map.get(TransformerType.METHOD_STATIC_MOVE).enabled = ((CheckBox)root.lookup("#moveMethods")).isSelected();
+        config.transformerConfigMap.get(TransformerType.METHOD_RENAME).enabled = ((CheckBox)root.lookup("#renameMethods")).isSelected();
+        config.transformerConfigMap.get(TransformerType.METHOD_PUBLIC).enabled = ((CheckBox)root.lookup("#modifierMethods")).isSelected();
+        config.transformerConfigMap.get(TransformerType.METHOD_SHUFFLE).enabled = ((CheckBox)root.lookup("#shuffleMethods")).isSelected();
+        config.transformerConfigMap.get(TransformerType.METHOD_STATIC_MOVE).enabled = ((CheckBox)root.lookup("#moveMethods")).isSelected();
 
-        config.map.get(TransformerType.CLASS_RENAME).enabled = ((CheckBox)root.lookup("#renameClasses")).isSelected();
-        config.map.get(TransformerType.CLASS_PUBLIC).enabled = ((CheckBox)root.lookup("#modifierClasses")).isSelected();
+        config.transformerConfigMap.get(TransformerType.CLASS_RENAME).enabled = ((CheckBox)root.lookup("#renameClasses")).isSelected();
+        config.transformerConfigMap.get(TransformerType.CLASS_PUBLIC).enabled = ((CheckBox)root.lookup("#modifierClasses")).isSelected();
 
-        config.map.get(TransformerType.FIELD_RENAME).enabled = ((CheckBox)root.lookup("#renameFields")).isSelected();
-        config.map.get(TransformerType.FIELD_PUBLIC).enabled = ((CheckBox)root.lookup("#modifierFields")).isSelected();
-        config.map.get(TransformerType.FIELD_SHUFFLE).enabled = ((CheckBox)root.lookup("#shuffleFields")).isSelected();
-        config.map.get(TransformerType.FIELD_STATIC_MOVE).enabled = ((CheckBox)root.lookup("#moveFields")).isSelected();
+        config.transformerConfigMap.get(TransformerType.FIELD_RENAME).enabled = ((CheckBox)root.lookup("#renameFields")).isSelected();
+        config.transformerConfigMap.get(TransformerType.FIELD_PUBLIC).enabled = ((CheckBox)root.lookup("#modifierFields")).isSelected();
+        config.transformerConfigMap.get(TransformerType.FIELD_SHUFFLE).enabled = ((CheckBox)root.lookup("#shuffleFields")).isSelected();
+        config.transformerConfigMap.get(TransformerType.FIELD_STATIC_MOVE).enabled = ((CheckBox)root.lookup("#moveFields")).isSelected();
 
-        config.map.get(TransformerType.LOCAL_RENAME).enabled = ((CheckBox)root.lookup("#shuffleLocals")).isSelected();
+        config.transformerConfigMap.get(TransformerType.LOCAL_RENAME).enabled = ((CheckBox)root.lookup("#shuffleLocals")).isSelected();
 
-        config.map.get(TransformerType.DEBUG_CLEAR).enabled = ((CheckBox)root.lookup("#clearInfo")).isSelected();
+        config.transformerConfigMap.get(TransformerType.DEBUG_CLEAR).enabled = ((CheckBox)root.lookup("#clearInfo")).isSelected();
 
         config.crashCRC = ((CheckBox)root.lookup("#crashCRC")).isSelected();
 
@@ -130,22 +127,22 @@ public final class MainController {
         outputPath.setText(config.outputPath);
         outputPath.selectAll();
 
-        ((CheckBox)root.lookup("#renameMethods")).setSelected(config.map.get(TransformerType.METHOD_RENAME).enabled);
-        ((CheckBox)root.lookup("#modifierMethods")).setSelected(config.map.get(TransformerType.METHOD_PUBLIC).enabled);
-        ((CheckBox)root.lookup("#shuffleMethods")).setSelected(config.map.get(TransformerType.METHOD_SHUFFLE).enabled);
-        ((CheckBox)root.lookup("#moveMethods")).setSelected(config.map.get(TransformerType.METHOD_STATIC_MOVE).enabled);
+        ((CheckBox)root.lookup("#renameMethods")).setSelected(config.transformerConfigMap.get(TransformerType.METHOD_RENAME).enabled);
+        ((CheckBox)root.lookup("#modifierMethods")).setSelected(config.transformerConfigMap.get(TransformerType.METHOD_PUBLIC).enabled);
+        ((CheckBox)root.lookup("#shuffleMethods")).setSelected(config.transformerConfigMap.get(TransformerType.METHOD_SHUFFLE).enabled);
+        ((CheckBox)root.lookup("#moveMethods")).setSelected(config.transformerConfigMap.get(TransformerType.METHOD_STATIC_MOVE).enabled);
 
-        ((CheckBox)root.lookup("#renameClasses")).setSelected(config.map.get(TransformerType.CLASS_RENAME).enabled);
-        ((CheckBox)root.lookup("#modifierClasses")).setSelected(config.map.get(TransformerType.CLASS_PUBLIC).enabled);
+        ((CheckBox)root.lookup("#renameClasses")).setSelected(config.transformerConfigMap.get(TransformerType.CLASS_RENAME).enabled);
+        ((CheckBox)root.lookup("#modifierClasses")).setSelected(config.transformerConfigMap.get(TransformerType.CLASS_PUBLIC).enabled);
 
-        ((CheckBox)root.lookup("#renameFields")).setSelected(config.map.get(TransformerType.FIELD_RENAME).enabled);
-        ((CheckBox)root.lookup("#modifierFields")).setSelected(config.map.get(TransformerType.FIELD_PUBLIC).enabled);
-        ((CheckBox)root.lookup("#shuffleFields")).setSelected(config.map.get(TransformerType.FIELD_SHUFFLE).enabled);
-        ((CheckBox)root.lookup("#moveFields")).setSelected(config.map.get(TransformerType.FIELD_STATIC_MOVE).enabled);
+        ((CheckBox)root.lookup("#renameFields")).setSelected(config.transformerConfigMap.get(TransformerType.FIELD_RENAME).enabled);
+        ((CheckBox)root.lookup("#modifierFields")).setSelected(config.transformerConfigMap.get(TransformerType.FIELD_PUBLIC).enabled);
+        ((CheckBox)root.lookup("#shuffleFields")).setSelected(config.transformerConfigMap.get(TransformerType.FIELD_SHUFFLE).enabled);
+        ((CheckBox)root.lookup("#moveFields")).setSelected(config.transformerConfigMap.get(TransformerType.FIELD_STATIC_MOVE).enabled);
 
-        ((CheckBox)root.lookup("#shuffleLocals")).setSelected(config.map.get(TransformerType.LOCAL_RENAME).enabled);
+        ((CheckBox)root.lookup("#shuffleLocals")).setSelected(config.transformerConfigMap.get(TransformerType.LOCAL_RENAME).enabled);
 
-        ((CheckBox)root.lookup("#clearInfo")).setSelected(config.map.get(TransformerType.DEBUG_CLEAR).enabled);
+        ((CheckBox)root.lookup("#clearInfo")).setSelected(config.transformerConfigMap.get(TransformerType.DEBUG_CLEAR).enabled);
 
         ((CheckBox)root.lookup("#crashCRC")).setSelected(config.crashCRC);
 

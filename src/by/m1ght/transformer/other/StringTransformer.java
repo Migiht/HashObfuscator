@@ -31,8 +31,8 @@ public class StringTransformer extends Transformer {
     @Override
     public void init(Obfuscator obf) {
         super.init(obf);
-        className = config.params.getOrDefault("CLASS_NAME", UniqueStringGenerator.get(obfuscator.classNameGeneratorID.getAndIncrement()));
-        fieldName = config.params.getOrDefault("FIELD_NAME", "a");
+        //className = config.params.getOrDefault("CLASS_NAME", UniqueStringGenerator.get(obfuscator.classNameGeneratorID.getAndIncrement()));
+        //fieldName = config.params.getOrDefault("FIELD_NAME", "a");
     }
 
     @Override

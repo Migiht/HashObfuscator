@@ -22,11 +22,6 @@ public class StaticMethodMover extends Transformer {
     }
 
     @Override
-    public boolean isTransformGenerated() {
-        return false;
-    }
-
-    @Override
     public void transform(ClassNode node) {
         List<MethodNode> cache = new ArrayList<>();
 
@@ -36,7 +31,9 @@ public class StaticMethodMover extends Transformer {
             }
         }
 
-        ClassNode randNode = AsmUtil.createNode(UniqueStringGenerator.get(obfuscator.classNameGeneratorID.getAndIncrement()));
+        ClassNode randNode = null;
+                //AsmUtil.createNode(UniqueStringGenerator.get(obfuscator.classNameGeneratorID.getAndIncrement()));
+        // TODO find random
         if (!cache.isEmpty()) {
             //nodes.add(randNode);
         }
