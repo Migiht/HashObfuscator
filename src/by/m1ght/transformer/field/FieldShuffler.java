@@ -18,10 +18,10 @@ public class FieldShuffler extends Transformer {
             List<FieldNode> methods = node.fields;
             for (int i = 0; i < methods.size(); i++) {
                 FieldNode method = methods.get(i);
-                if (canTransform(node, method)) {
+                if (canTransformField(node, method)) {
                     int swapIndex = ThreadLocalRandom.current().nextInt(node.fields.size());
                     FieldNode swap = node.fields.get(swapIndex);
-                    if (canTransform(node, swap)) {
+                    if (canTransformField(node, swap)) {
                         Collections.swap(methods, i, swapIndex);
                     }
                 }

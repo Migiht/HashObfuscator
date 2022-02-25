@@ -22,7 +22,7 @@ public class FieldRenamer extends Transformer {
     @Override
     public void transform(ClassNode node) {
         for (FieldNode field : node.fields) {
-            if (canTransform(node, field) && Util.noFlag(field.access, ACC_SYNTHETIC)) {
+            if (canTransformField(node, field) && Util.noFlag(field.access, ACC_SYNTHETIC)) {
                 obfuscator.mapper.fieldHasher.put(node.name, field.name, field.desc);
             } else {
                 field.access = Util.setFlag(field.access, ACC_SKIPPED);

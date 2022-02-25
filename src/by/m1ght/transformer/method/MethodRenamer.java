@@ -1,15 +1,12 @@
 package by.m1ght.transformer.method;
 
 import by.m1ght.Obfuscator;
-import by.m1ght.asm.common.ObfHasher;
 import by.m1ght.transformer.Transformer;
 import by.m1ght.transformer.TransformerType;
 import by.m1ght.util.AsmUtil;
 import by.m1ght.util.LogUtil;
 import by.m1ght.util.Util;
 import it.unimi.dsi.fastutil.objects.Object2ObjectOpenHashMap;
-import it.unimi.dsi.fastutil.objects.ObjectList;
-import org.objectweb.asm.tree.AnnotationNode;
 import org.objectweb.asm.tree.ClassNode;
 import org.objectweb.asm.tree.MethodNode;
 
@@ -37,18 +34,18 @@ public class MethodRenamer extends Transformer {
     }
 
     @Override
-    protected boolean canTransform(ClassNode owner, MethodNode method) {
+    protected boolean canTransformMethod(ClassNode owner, MethodNode method) {
         if (method.desc.equals(superMethodCache.get(method.name))) {
             return false;
         }
 
-        return super.canTransform(owner, method) && (!isSuperMethod(owner, method) && !isInterfaceMethod(owner, method));
+        return super.canTransformMethod(owner, method) && (!isSuperMethod(owner, method) && !isInterfaceMethod(owner, method));
     }
 
     @Override
     public void transform(ClassNode node) {
         for (MethodNode method : node.methods) {
-            if (canTransform(node, method)) {
+            if (canTransformMethod(node, method)) {
                 obfuscator.mapper.methodHasher.put(node.name, method.name, method.desc);
             } else {
                 method.access = Util.setFlag(method.access, ACC_SKIPPED);

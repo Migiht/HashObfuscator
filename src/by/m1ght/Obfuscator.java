@@ -48,6 +48,8 @@ public final class Obfuscator implements Runnable {
 
     public final Map<String, ClassNode> nodeByName = new Object2ObjectOpenHashMap<>();
 
+    public final Object2ObjectMap<Object, BitSet> excludeByNode = new Object2ObjectOpenHashMap<>();
+
     private final ObjectList<ClassNode> nodeList = new ObjectArrayList<>();
 
     private final ObjectList<Transformer> transformers = new ObjectArrayList<>();
@@ -58,17 +60,17 @@ public final class Obfuscator implements Runnable {
         config = cfg;
         LogUtil.setDebugEnabled(cfg.debug);
         UniqueStringGenerator.setCaching(cfg.caching);
-        cfg.computeExcludes();
     }
 
     private void initTransformers() {
+        int transformerID = 0;
         TransformerConfig global = config.transformerConfigMap.get(TransformerType.GLOBAL);
         for (Iterator<Transformer> iterator = transformers.iterator(); iterator.hasNext(); ) {
             Transformer worker = iterator.next();
 
             TransformerConfig workerCfg = config.transformerConfigMap.get(worker.getType());
             if (workerCfg != null && workerCfg.enabled && global.enabled) {
-                worker.init(this);
+                worker.init(this, transformerID++);
             } else {
                 iterator.remove();
                 continue;
@@ -101,6 +103,15 @@ public final class Obfuscator implements Runnable {
         transformers.add(new MethodRenamer());
         transformers.add(new INDYRenamer());
         transformers.add(new FieldRenamer());
+    }
+
+    private void computeExcludes() {
+        config.computeExcludes();
+        for (Transformer transformer : transformers) {
+            for (ClassNode classNode : nodeList) {
+                transformer.computeClassExcludes(classNode);
+            }
+        }
     }
 
     private void loadInputFile() throws IOException {
@@ -271,13 +282,14 @@ public final class Obfuscator implements Runnable {
 
         loadTransformers();
         initTransformers();
+        computeExcludes();
 
         LogUtil.info("Process input classes");
 
         for (Transformer transformer : transformers) {
             for (int i = 0; i < nodeList.size(); i++) {
                 ClassNode node = nodeList.get(i);
-                if (transformer.canTransform(node)) {
+                if (transformer.canTransformClass(node)) {
                     transformer.transform(node);
                 }
             }

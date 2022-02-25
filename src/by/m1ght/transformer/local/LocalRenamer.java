@@ -11,7 +11,7 @@ public class LocalRenamer extends Transformer {
     @Override
     public void transform(ClassNode node) {
         for (MethodNode method : node.methods) {
-            if (canTransform(node, method) && method.localVariables != null) {
+            if (canTransformMethod(node, method) && method.localVariables != null) {
                 int generatorID = 0;
                 for (LocalVariableNode localVariable : method.localVariables) {
                     localVariable.name = UniqueStringGenerator.get(generatorID++);

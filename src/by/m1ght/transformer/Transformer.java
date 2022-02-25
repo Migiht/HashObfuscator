@@ -4,24 +4,24 @@ import by.m1ght.Obfuscator;
 import by.m1ght.config.TransformerConfig;
 import by.m1ght.util.LogUtil;
 import by.m1ght.util.Util;
-import it.unimi.dsi.fastutil.objects.ObjectList;
 import org.objectweb.asm.Opcodes;
 import org.objectweb.asm.tree.*;
 
-import java.util.Collections;
-import java.util.List;
+import java.util.BitSet;
 
 public abstract class Transformer implements Opcodes {
     public static int ACC_SKIPPED = Integer.MIN_VALUE;
     public static int ACC_LIB = Integer.MIN_VALUE;
 
+    public int id;
     protected Obfuscator obfuscator;
     protected TransformerConfig config;
 
-    public void init(Obfuscator obf) {
+    public void init(Obfuscator obf, int id) {
         LogUtil.log(LogUtil.Level.DEBUG, "Init " + this.getClass().getSimpleName());
         this.obfuscator = obf;
         this.config = new TransformerConfig();
+        this.id = id;
     }
 
     public abstract void transform(ClassNode node);
@@ -38,18 +38,34 @@ public abstract class Transformer implements Opcodes {
         return false;
     }
 
-    protected boolean canTransform(ClassNode owner, MethodNode method) {
-        if (!isTransformBaseMethod() && (method.name.charAt(0) == '<' || "main".equals(method.name))) {
+    public boolean canTransformClass(ClassNode node) {
+        return obfuscator.excludeByNode.get(node).get(id);
+    }
+
+    protected boolean canTransformMethod(ClassNode owner, MethodNode method) {
+        if (Util.noFlag(method.access, Opcodes.ACC_NATIVE) && !isTransformBaseMethod() && (method.name.charAt(0) == '<' || "main".equals(method.name))) {
             return false;
         }
-        return Util.noFlag(method.access, Opcodes.ACC_NATIVE) && config.canTransform(Util.hash(owner.name, method.name), method.access, method.visibleAnnotations);
+
+        return obfuscator.excludeByNode.get(method).get(id);
     }
 
-    public boolean canTransform(ClassNode node) {
-        return config.canTransformPackage(node.name);
+    public boolean canTransformField(ClassNode owner, FieldNode field) {
+        return obfuscator.excludeByNode.get(field).get(id);
     }
 
-    public boolean canTransform(ClassNode owner, FieldNode field) {
-        return config.canTransform(Util.hash(owner.name, field.name), field.access, field.visibleAnnotations);
+    public void computeClassExcludes(ClassNode node) {
+        BitSet bitSet = obfuscator.excludeByNode.computeIfAbsent(node, (func) -> new BitSet(32));
+        bitSet.set(id, config.canTransform(node));
+
+        for (MethodNode method : node.methods) {
+            bitSet = obfuscator.excludeByNode.computeIfAbsent(method, (func) -> new BitSet(32));
+            bitSet.set(id, config.canTransformMethod(node, method));
+        }
+
+        for (FieldNode field : node.fields) {
+            bitSet = obfuscator.excludeByNode.computeIfAbsent(field, (func) -> new BitSet(32));
+            bitSet.set(id, config.canTransformField(node, field));
+        }
     }
 }

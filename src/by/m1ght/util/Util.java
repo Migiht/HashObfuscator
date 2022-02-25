@@ -167,17 +167,31 @@ public final class Util {
         }
     }
 
-    public static boolean isFlag(int id, int access) {
-        return (id & access) != 0;
+    public static boolean isFlag(int src, int access) {
+        return (src & access) != 0;
     }
 
-    public static boolean noFlag(int id, int access) {
-        return (id & access) == 0;
+    public static boolean noFlag(int src, int access) {
+        return (src & access) == 0;
     }
 
-    public static int setFlag(int src, int dst) {
-        return src | dst;
+    public static int setFlag(int src, int access) {
+        return src | access;
     }
+
+
+    public static boolean isFlag(long src, long access) {
+        return (src & access) != 0;
+    }
+
+    public static boolean noFlag(long src, long access) {
+        return (src & access) == 0;
+    }
+
+    public static long setFlag(long src, long access) {
+        return src | access;
+    }
+
 
     public static int getFirstInt(long src) {
         return (int) (src >>> 32);

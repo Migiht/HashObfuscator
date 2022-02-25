@@ -8,6 +8,8 @@ import it.unimi.dsi.fastutil.objects.ObjectOpenHashSet;
 import it.unimi.dsi.fastutil.objects.ObjectSet;
 import org.objectweb.asm.tree.AnnotationNode;
 import org.objectweb.asm.tree.ClassNode;
+import org.objectweb.asm.tree.FieldNode;
+import org.objectweb.asm.tree.MethodNode;
 
 import java.util.Collections;
 import java.util.HashMap;
@@ -52,18 +54,18 @@ public final class TransformerConfig {
         return true;
     }
 
-    public boolean canTransformField(String owner, String name, String desc, int access, List<AnnotationNode> list) {
+    public boolean canTransformField(ClassNode owner, FieldNode node) {
         for (Map.Entry<Pattern, List<RuntimeExclusions.RuntimeElement>> entry : runtimeExclusions.fieldExclusions.entrySet()) {
-            boolean exclude = entry.getKey().matcher(owner).matches();
+            boolean exclude = entry.getKey().matcher(owner.name).matches();
 
             if (exclude) {
                 for (RuntimeExclusions.RuntimeElement element : entry.getValue()) {
-                    if ((element.access & access) == element.access && element.name.matcher(name).matches() && element.desc.matcher(desc).matches()) {
+                    if ((element.access & node.access) == element.access && element.name.matcher(node.name).matches() && element.desc.matcher(node.desc).matches()) {
                         if (entry.getValue().isEmpty()) {
                             return false;
                         }
 
-                        for (AnnotationNode anno : list) {
+                        for (AnnotationNode anno : node.visibleAnnotations) {
                             if (element.interfaceExcludes.contains(anno.desc)) {
                                 return false;
                             }
@@ -75,16 +77,23 @@ public final class TransformerConfig {
         return true;
     }
 
-    public boolean canTransformMethod(String owner, String name, String desc, int access, List<AnnotationNode> anno) {
-        for (RuntimeElement value : runtimeExclusions.values()) {
-            boolean exclude = (value.access & access) == value.access &&
-                    value.name.matcher(name).matches() &&
-                    value.desc.matcher(desc).matches();
+    public boolean canTransformMethod(ClassNode owner, MethodNode node) {
+        for (Map.Entry<Pattern, List<RuntimeExclusions.RuntimeElement>> entry : runtimeExclusions.methodExclusions.entrySet()) {
+            boolean exclude = entry.getKey().matcher(owner.name).matches();
 
-            if (anno.isEmpty()) return !exclude;
-            for (AnnotationNode annotationNode : anno) {
-                if (value.interfaceExcludes.contains(annotationNode.desc)) {
-                    return !exclude;
+            if (exclude) {
+                for (RuntimeExclusions.RuntimeElement element : entry.getValue()) {
+                    if ((element.access & node.access) == element.access && element.name.matcher(node.name).matches() && element.desc.matcher(node.desc).matches()) {
+                        if (entry.getValue().isEmpty()) {
+                            return false;
+                        }
+
+                        for (AnnotationNode anno : node.visibleAnnotations) {
+                            if (element.interfaceExcludes.contains(anno.desc)) {
+                                return false;
+                            }
+                        }
+                    }
                 }
             }
         }

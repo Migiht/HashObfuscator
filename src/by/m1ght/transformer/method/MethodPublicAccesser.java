@@ -10,7 +10,7 @@ public class MethodPublicAccesser extends Transformer {
     @Override
     public void transform(ClassNode node) {
         for (MethodNode method : node.methods) {
-            if (canTransform(node, method)) {
+            if (canTransformMethod(node, method)) {
                 method.access = AsmUtil.changeToPublic(method.access);
                 method.access = AsmUtil.changeToNotFinal(method.access);
             }

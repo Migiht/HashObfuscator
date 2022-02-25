@@ -26,7 +26,7 @@ public class StaticMethodMover extends Transformer {
         List<MethodNode> cache = new ArrayList<>();
 
         for (MethodNode method : node.methods) {
-            if (canTransform(node, method) && Util.isFlag(method.access, Opcodes.ACC_STATIC) && !Util.isFlag(method.access, Opcodes.ACC_SYNTHETIC)) {
+            if (canTransformMethod(node, method) && Util.isFlag(method.access, Opcodes.ACC_STATIC) && !Util.isFlag(method.access, Opcodes.ACC_SYNTHETIC)) {
                 cache.add(method);
             }
         }

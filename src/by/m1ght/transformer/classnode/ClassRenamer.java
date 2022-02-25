@@ -13,6 +13,7 @@ public class ClassRenamer extends Transformer {
 
     @Override
     public void transform(ClassNode node) {
+
         obfuscator.mapper.putClassName(node.name, Util.setNewName(obfuscator.mapper.mapType(node.name), UniqueStringGenerator.get(nextClassID.getAndIncrement())));
     }
 

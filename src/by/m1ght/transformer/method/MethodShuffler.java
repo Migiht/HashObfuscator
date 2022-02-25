@@ -16,10 +16,10 @@ public class MethodShuffler extends Transformer {
             List<MethodNode> methods = node.methods;
             for (int i = 0; i < methods.size(); i++) {
                 MethodNode method = methods.get(i);
-                if (canTransform(node, method)) {
+                if (canTransformMethod(node, method)) {
                     int swapIndex = ThreadLocalRandom.current().nextInt(node.methods.size());
                     MethodNode swap = node.methods.get(swapIndex);
-                    if (canTransform(node, swap)) {
+                    if (canTransformMethod(node, swap)) {
                         Collections.swap(methods, i, swapIndex);
                     }
                 }
