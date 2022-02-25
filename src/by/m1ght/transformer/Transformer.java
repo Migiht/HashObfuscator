@@ -46,11 +46,7 @@ public abstract class Transformer implements Opcodes {
     }
 
     public boolean canTransform(ClassNode node) {
-        if (!config.canTransformPackage(node.name)) {
-            return false;
-        }
-
-        return config.canTransform(Util.hash(node.name), node.access, node.visibleAnnotations);
+        return config.canTransformPackage(node.name);
     }
 
     public boolean canTransform(ClassNode owner, FieldNode field) {

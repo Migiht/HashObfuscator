@@ -5,8 +5,10 @@ import org.objectweb.asm.Opcodes;
 import org.objectweb.asm.commons.CodeSizeEvaluator;
 import org.objectweb.asm.tree.*;
 
+import java.util.List;
 import java.util.function.BiConsumer;
 import java.util.function.Consumer;
+import java.util.stream.Collectors;
 
 public final class AsmUtil {
     public static boolean isPushInt(AbstractInsnNode insn) {
@@ -169,6 +171,10 @@ public final class AsmUtil {
 
     public static int changeToNotFinal(int access) {
         return access & ~Opcodes.ACC_FINAL;
+    }
+
+    public static List<String> toAsmNames(List<String> interfaces) {
+        return interfaces.stream().map(s -> s.replace("@", "")).map(s -> 'L' + s + ';').collect(Collectors.toList());
     }
 
     public static int parseKeyWordToAccess(String keyword) {
