@@ -1,6 +1,5 @@
 package by.m1ght.asm.common;
 
-import by.m1ght.GeneratorType;
 import by.m1ght.util.UniqueStringGenerator;
 import by.m1ght.util.Util;
 import it.unimi.dsi.fastutil.longs.Long2ObjectMap;
@@ -71,7 +70,6 @@ public class ObfHasher {
         String generated = null;
 
         switch (type) {
-
             case SEQUENCE:
                 generated = cache.computeIfAbsent(nameDescHash, (func) -> UniqueStringGenerator.get(seqId.getAndIncrement()));
                 break;
@@ -98,4 +96,10 @@ public class ObfHasher {
         return cache.getOrDefault(hash(name, desc, owner), name);
     }
 
+    public enum GeneratorType {
+        SEQUENCE,
+        NAME_HASH,
+        NAME_DESC_HASH
+        ;
+    }
 }
