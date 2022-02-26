@@ -13,15 +13,22 @@ public abstract class Transformer implements Opcodes {
     public static int ACC_SKIPPED = Integer.MIN_VALUE;
     public static int ACC_LIB = Integer.MIN_VALUE;
 
-    public int id;
+    private int id;
     protected Obfuscator obfuscator;
     protected TransformerConfig config;
 
-    public void init(Obfuscator obf, int id) {
+    public void init(Obfuscator obf) {
         LogUtil.log(LogUtil.Level.DEBUG, "Init " + this.getClass().getSimpleName());
         this.obfuscator = obf;
         this.config = new TransformerConfig();
+    }
+
+    public void setId(int id) {
         this.id = id;
+    }
+
+    public int getId() {
+        return id;
     }
 
     public abstract void transform(ClassNode node);
