@@ -65,12 +65,13 @@ public final class Obfuscator implements Runnable {
     private void initTransformers() {
         int transformerID = 0;
         TransformerConfig global = config.transformerConfigMap.get(TransformerType.GLOBAL);
-        for (Iterator<Transformer> iterator = transformers.iterator(); iterator.hasNext(); ) {
+        for (Iterator<Transformer> iterator = transformers.iterator(); iterator.hasNext();) {
             Transformer worker = iterator.next();
 
             TransformerConfig workerCfg = config.transformerConfigMap.get(worker.getType());
             if (workerCfg != null && workerCfg.enabled && global.enabled) {
-                worker.init(this, transformerID++);
+                worker.init(this);
+                worker.setId(transformerID++);
             } else {
                 iterator.remove();
                 continue;

@@ -86,7 +86,7 @@ public final class LogUtil {
         INFO,
         WARNING,
         ERROR
-        ,
+        ;
     }
 
     @FunctionalInterface
