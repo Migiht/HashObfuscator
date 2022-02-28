@@ -1,5 +1,6 @@
 import by.m1ght.util.AsmUtil;
 import by.m1ght.util.LogUtil;
+import by.m1ght.util.UniqueStringGenerator;
 import org.apache.commons.compress.archivers.zip.ZipArchiveInputStream;
 import org.objectweb.asm.ClassReader;
 import org.objectweb.asm.Type;
@@ -14,18 +15,19 @@ import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.nio.file.StandardOpenOption;
 import java.util.*;
+import java.util.stream.Collectors;
 import java.util.zip.ZipEntry;
 
 public class Replacer {
     private final Path file;
-    private final Set<String> stringSet = new HashSet<>();
+    private final Map<String, StringType> stringSet = new HashMap<>();
     private final List<ClassNode> nodes = new ArrayList<>();
     private final List<ProguardConfigPart> proguardConfig = new ArrayList<>();
     private final Path proguardConfigFile;
 
-    public Replacer(String file, String proguardConfigFile) {
-        this.file = Paths.get(file);
-        this.proguardConfigFile = Paths.get(proguardConfigFile);
+    public Replacer(String srcPath, String proguardCfgPath) {
+        this.file = Paths.get(srcPath);
+        this.proguardConfigFile = Paths.get(proguardCfgPath);
     }
 
     public void loadInput() throws Throwable {
@@ -51,14 +53,15 @@ public class Replacer {
                                 buffer = ByteBuffer.wrap(Arrays.copyOf(buffer.array(), buffer.capacity() * 2));
                                 buffer.position(buffer.capacity() / 2);
                             }
+                        }
 
-                            if (name.endsWith(".class") && !entry.getName().contains("META-INF")) {
-                                ClassReader reader = new ClassReader(buffer.array());
-                                ClassNode node = new ClassNode();
-                                reader.accept(node, AsmUtil.getInputReaderFlags());
+                        if (name.endsWith(".class")) {
+                            ClassReader reader = new ClassReader(buffer.array());
+                            ClassNode node = new ClassNode();
+                            reader.accept(node, AsmUtil.getInputReaderFlags());
 
-                                nodes.add(node);
-                            }
+                            System.out.println(node.name);
+                            nodes.add(node);
                         }
                     } catch (Throwable e) {
                         e.printStackTrace();
@@ -66,18 +69,24 @@ public class Replacer {
                     }
                 }
             }
+
+            Collections.shuffle(nodes);
             LogUtil.info("Загружено %s классов из исходного файла", nodes.size());
         }
     }
 
-    public void findStrings() throws Throwable {
+    public void findStrings() {
         for (ClassNode node : nodes) {
             for (MethodNode method : node.methods) {
                 for (AbstractInsnNode instruction : method.instructions) {
                     if (instruction.getType() == AbstractInsnNode.LDC_INSN) {
                         LdcInsnNode string = (LdcInsnNode) instruction;
                         if (string.cst instanceof String) {
-                            stringSet.add((String) string.cst);
+                            if (((String) string.cst).contains(".")) {
+                                stringSet.put(AsmUtil.toAsmName((String) string.cst), StringType.POINT);
+                            } else {
+                                stringSet.put((String) string.cst, StringType.SLASH);
+                            }
                         }
                     }
                 }
@@ -86,7 +95,17 @@ public class Replacer {
     }
 
     public void replaceNames() {
+        int id = Short.MAX_VALUE;
+
         for (ClassNode node : nodes) {
+
+            String src = node.name;
+            ProguardConfigPart configPart = new ProguardConfigPart(node.name);
+
+            if (stringSet.containsKey(src)) {
+                UniqueStringGenerator.get(id++)
+            }
+
             for (MethodNode method : node.methods) {
 
             }
@@ -95,6 +114,10 @@ public class Replacer {
 
             }
         }
+    }
+
+    public void replaceNode(ClassNode node) {
+
     }
 
     public void saveData() {
@@ -130,7 +153,13 @@ public class Replacer {
                 }
 
                 for (Map.Entry<NodeData, String> entry : part.fieldList.entrySet()) {
-                    data.add(tabSymbol + entry.getKey());
+                    data.add(tabSymbol +
+                            Type.getType(entry.getKey().desc).getClassName()
+                            + " "
+                            + entry.getKey().name
+                            + " -> "
+                            + entry.getValue()
+                    );
                 }
 
             }
@@ -143,13 +172,12 @@ public class Replacer {
 
     private static class ProguardConfigPart {
         public final String owner;
-        public final String newOwner;
+        public String newOwner;
         public final Map<NodeData, String> methodList = new HashMap<>();
         public final Map<NodeData, String> fieldList = new HashMap<>();
 
-        public ProguardConfigPart(String owner, String newOwner) {
+        public ProguardConfigPart(String owner) {
             this.owner = owner;
-            this.newOwner = newOwner;
         }
     }
 
@@ -161,5 +189,12 @@ public class Replacer {
             this.name = name;
             this.desc = desc;
         }
+    }
+
+    private enum StringType {
+        POINT,
+        SLASH,
+
+        ;
     }
 }

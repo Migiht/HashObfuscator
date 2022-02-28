@@ -7,7 +7,6 @@ import org.objectweb.asm.tree.*;
 
 import java.util.List;
 import java.util.function.BiConsumer;
-import java.util.function.Consumer;
 import java.util.stream.Collectors;
 
 public final class AsmUtil {
@@ -153,8 +152,12 @@ public final class AsmUtil {
         return node;
     }
 
-    public static String getAsmName(String name) {
+    public static String toAsmName(String name) {
         return name.replace('.', '/');
+    }
+
+    public static String toPointName(String name) {
+        return name.replace('/', '.');
     }
 
     public static int getLibReaderFlags() {

@@ -24,7 +24,7 @@ public class MethodRenamer extends Transformer {
     }
 
     private void addToCache(Class<?> superClass) {
-        ClassNode node = obfuscator.nodeByName.get(AsmUtil.getAsmName(superClass.getName()));
+        ClassNode node = obfuscator.nodeByName.get(AsmUtil.toAsmName(superClass.getName()));
         if (node != null) {
             for (MethodNode method : node.methods) {
                 superMethodCache.put(method.name, method.desc);

@@ -34,7 +34,7 @@ public class ObfRemapper extends Remapper {
     public void replaceLDC(String old, String newName) {
         if (!LDCNames.isEmpty()) {
             if (LDCNames.replace(old, newName) == null) {
-                LDCNames.replace(AsmUtil.getAsmName(old), newName);
+                LDCNames.replace(AsmUtil.toAsmName(old), newName);
             }
         }
     }
