@@ -15,12 +15,11 @@ import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.nio.file.StandardOpenOption;
 import java.util.*;
-import java.util.stream.Collectors;
 import java.util.zip.ZipEntry;
 
 public class Replacer {
     private final Path file;
-    private final Map<String, StringType> stringSet = new HashMap<>();
+    private final Set<String> stringSet = new HashSet<>();
     private final List<ClassNode> nodes = new ArrayList<>();
     private final List<ProguardConfigPart> proguardConfig = new ArrayList<>();
     private final Path proguardConfigFile;
@@ -82,11 +81,7 @@ public class Replacer {
                     if (instruction.getType() == AbstractInsnNode.LDC_INSN) {
                         LdcInsnNode string = (LdcInsnNode) instruction;
                         if (string.cst instanceof String) {
-                            if (((String) string.cst).contains(".")) {
-                                stringSet.put(AsmUtil.toAsmName((String) string.cst), StringType.POINT);
-                            } else {
-                                stringSet.put((String) string.cst, StringType.SLASH);
-                            }
+                            stringSet.add(AsmUtil.toAsmName((String) string.cst));
                         }
                     }
                 }
@@ -98,26 +93,39 @@ public class Replacer {
         int id = Short.MAX_VALUE;
 
         for (ClassNode node : nodes) {
+            ProguardConfigPart configPart = null;
 
-            String src = node.name;
-            ProguardConfigPart configPart = new ProguardConfigPart(node.name);
-
-            if (stringSet.containsKey(src)) {
-                UniqueStringGenerator.get(id++)
+            if (stringSet.contains(node.name)) {
+                configPart = new ProguardConfigPart(node.name);
+                configPart.newOwner = UniqueStringGenerator.get(id++);
             }
 
             for (MethodNode method : node.methods) {
+                if (stringSet.contains(method.name)) {
+                    if (configPart == null) {
+                        configPart = new ProguardConfigPart(node.name);
+                        configPart.newOwner = UniqueStringGenerator.get(id++);
+                    }
 
+                    configPart.methods.put(new NodeData(method), UniqueStringGenerator.get(id++));
+                }
             }
 
             for (FieldNode field : node.fields) {
+                if (stringSet.contains(field.name)) {
+                    if (configPart == null) {
+                        configPart = new ProguardConfigPart(node.name);
+                        configPart.newOwner = UniqueStringGenerator.get(id++);
+                    }
 
+                    configPart.fields.put(new NodeData(field), UniqueStringGenerator.get(id++));
+                }
+            }
+
+            if (configPart != null) {
+                proguardConfig.add(configPart);
             }
         }
-    }
-
-    public void replaceNode(ClassNode node) {
-
     }
 
     public void saveData() {
@@ -130,9 +138,8 @@ public class Replacer {
             for (ProguardConfigPart part : proguardConfig) {
                 data.add(part.owner + " -> " + part.newOwner + ":");
 
-                for (Map.Entry<NodeData, String> entry : part.methodList.entrySet()) {
-
-                    StringBuilder args = new StringBuilder();
+                for (Map.Entry<NodeData, String> entry : part.methods.entrySet()) {
+                    StringBuilder args = new StringBuilder("(");
                     Type[] argumentTypes = Type.getArgumentTypes(entry.getKey().desc);
 
                     for (int i = 0; i < argumentTypes.length; i++) {
@@ -142,6 +149,7 @@ public class Replacer {
                             args.append(',');
                         }
                     }
+                    args.append(")");
 
                     data.add(tabSymbol
                             + Type.getReturnType(entry.getKey().desc).getClassName()
@@ -152,7 +160,7 @@ public class Replacer {
                     );
                 }
 
-                for (Map.Entry<NodeData, String> entry : part.fieldList.entrySet()) {
+                for (Map.Entry<NodeData, String> entry : part.fields.entrySet()) {
                     data.add(tabSymbol +
                             Type.getType(entry.getKey().desc).getClassName()
                             + " "
@@ -173,11 +181,11 @@ public class Replacer {
     private static class ProguardConfigPart {
         public final String owner;
         public String newOwner;
-        public final Map<NodeData, String> methodList = new HashMap<>();
-        public final Map<NodeData, String> fieldList = new HashMap<>();
+        public final Map<NodeData, String> methods = new HashMap<>();
+        public final Map<NodeData, String> fields = new HashMap<>();
 
         public ProguardConfigPart(String owner) {
-            this.owner = owner;
+            this.owner = AsmUtil.toPointName(owner);
         }
     }
 
@@ -185,16 +193,19 @@ public class Replacer {
         public final String name;
         public final String desc;
 
+        public NodeData(MethodNode node) {
+            this.name = node.name;
+            this.desc = AsmUtil.toPointName(node.desc);
+        }
+
+        public NodeData(FieldNode node) {
+            this.name = node.name;
+            this.desc = AsmUtil.toPointName(node.desc);
+        }
+
         public NodeData(String name, String desc) {
             this.name = name;
             this.desc = desc;
         }
-    }
-
-    private enum StringType {
-        POINT,
-        SLASH,
-
-        ;
     }
 }
