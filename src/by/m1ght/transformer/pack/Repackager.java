@@ -20,7 +20,6 @@ public class Repackager extends Transformer {
         obfuscator.mapper.putClassName(node.name, Util.setNewPackage(obfuscator.mapper.mapType(node.name), newPackage));
     }
 
-
     @Override
     public TransformerType getType() {
         return TransformerType.REPACKAGER;

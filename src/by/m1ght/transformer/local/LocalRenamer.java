@@ -15,7 +15,6 @@ public class LocalRenamer extends Transformer {
                 int generatorID = 0;
                 for (LocalVariableNode localVariable : method.localVariables) {
                     localVariable.name = UniqueStringGenerator.get(generatorID++);
-                    LogUtil.debug(localVariable.name);
                 }
             }
         }

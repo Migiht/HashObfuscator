@@ -22,6 +22,7 @@ public class INDYRenamer extends Transformer {
                     InvokeDynamicInsnNode indyInsn = (InvokeDynamicInsnNode) instruction;
                     String className = AsmUtil.getReturnType(indyInsn.desc);
                     ClassNode classNode = obfuscator.nodeByName.get(className);
+
                     if (classNode != null && Util.noFlag(classNode.access, ACC_LIB)) {
                         MethodNode findMethod = AsmUtil.getMethodNode(classNode, indyInsn.name);
                         if (findMethod != null) {
