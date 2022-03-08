@@ -199,7 +199,6 @@ public final class Obfuscator implements Runnable {
                             output.write(value.array(), 0, value.position());
                         }
 
-
                     } catch (Throwable throwable) {
                         throwable.printStackTrace();
                     }

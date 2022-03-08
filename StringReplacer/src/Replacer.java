@@ -1,8 +1,10 @@
 import by.m1ght.util.AsmUtil;
+import by.m1ght.util.IOUtil;
 import by.m1ght.util.LogUtil;
 import by.m1ght.util.UniqueStringGenerator;
 import org.apache.commons.compress.archivers.zip.ZipArchiveInputStream;
 import org.objectweb.asm.ClassReader;
+import org.objectweb.asm.ClassWriter;
 import org.objectweb.asm.Type;
 import org.objectweb.asm.tree.*;
 
@@ -10,78 +12,88 @@ import java.io.IOException;
 import java.nio.ByteBuffer;
 import java.nio.channels.Channels;
 import java.nio.channels.ReadableByteChannel;
-import java.nio.file.Files;
-import java.nio.file.Path;
-import java.nio.file.Paths;
-import java.nio.file.StandardOpenOption;
+import java.nio.file.*;
+import java.nio.file.attribute.BasicFileAttributes;
 import java.util.*;
 import java.util.zip.ZipEntry;
+import java.util.zip.ZipOutputStream;
 
 public class Replacer {
-    private final Path file;
-    private final Set<String> stringSet = new HashSet<>();
-    private final List<ClassNode> nodes = new ArrayList<>();
+    private final Path srcPath;
+
+    private final List<InputJar> sources = new ArrayList<>();
+    private final Map<String, String> ldcMap = new HashMap<>();
     private final List<ProguardConfigPart> proguardConfig = new ArrayList<>();
-    private final Path proguardConfigFile;
+    private final Path proguardConfigPath;
+    private int id = Short.MAX_VALUE;
 
     public Replacer(String srcPath, String proguardCfgPath) {
-        this.file = Paths.get(srcPath);
-        this.proguardConfigFile = Paths.get(proguardCfgPath);
+        this.srcPath = Paths.get(srcPath);
+        this.proguardConfigPath = Paths.get(proguardCfgPath);
     }
 
     public void loadInput() throws Throwable {
-        try (ZipArchiveInputStream stream = new ZipArchiveInputStream(Files.newInputStream(file))) {
-            ReadableByteChannel channel = Channels.newChannel(stream);
+        Files.walkFileTree(srcPath, new SimpleFileVisitor<Path>() {
+            @Override
+            public FileVisitResult visitFile(Path file, BasicFileAttributes attrs) throws IOException {
+                try (ZipArchiveInputStream stream = new ZipArchiveInputStream(Files.newInputStream(file))) {
+                    ReadableByteChannel channel = Channels.newChannel(stream);
 
-            ZipEntry entry;
-            while ((entry = stream.getNextZipEntry()) != null) {
+                    ZipEntry entry;
+                    while ((entry = stream.getNextZipEntry()) != null) {
 
-                if (!entry.isDirectory()) {
-                    String name = entry.getName();
+                        if (!entry.isDirectory()) {
+                            String name = entry.getName();
 
-                    try {
-                        ByteBuffer buffer = ByteBuffer.wrap(new byte[4096]);
+                            try {
+                                ByteBuffer buffer = ByteBuffer.wrap(new byte[4096]);
 
-                        for (;;) {
-                            if (channel.read(buffer) <= 0 && buffer.hasRemaining()) {
-                                buffer.limit(buffer.position());
-                                buffer.flip();
-                                break;
-                            }
-                            if (!buffer.hasRemaining()) {
-                                buffer = ByteBuffer.wrap(Arrays.copyOf(buffer.array(), buffer.capacity() * 2));
-                                buffer.position(buffer.capacity() / 2);
+                                for (;;) {
+                                    if (channel.read(buffer) <= 0 && buffer.hasRemaining()) {
+                                        buffer.limit(buffer.position());
+                                        buffer.flip();
+                                        break;
+                                    }
+                                    if (!buffer.hasRemaining()) {
+                                        buffer = ByteBuffer.wrap(Arrays.copyOf(buffer.array(), buffer.capacity() * 2));
+                                        buffer.position(buffer.capacity() / 2);
+                                    }
+                                }
+
+                                InputJar jar = new InputJar(file);
+                                if (name.endsWith(".class")) {
+                                    ClassReader reader = new ClassReader(buffer.array());
+                                    ClassNode node = new ClassNode();
+                                    reader.accept(node, AsmUtil.getInputReaderFlags());
+
+                                    jar.nodes.add(node);
+                                } else {
+                                    jar.data.add(buffer);
+                                }
+                                sources.add(jar);
+
+                            } catch (Throwable e) {
+                                e.printStackTrace();
+                                LogUtil.warning("Класс %s не может быть загружен из исходного файла", name);
                             }
                         }
-
-                        if (name.endsWith(".class")) {
-                            ClassReader reader = new ClassReader(buffer.array());
-                            ClassNode node = new ClassNode();
-                            reader.accept(node, AsmUtil.getInputReaderFlags());
-
-                            System.out.println(node.name);
-                            nodes.add(node);
-                        }
-                    } catch (Throwable e) {
-                        e.printStackTrace();
-                        LogUtil.warning("Класс %s не может быть загружен из исходного файла", name);
                     }
                 }
+                return super.visitFile(file, attrs);
             }
-
-            Collections.shuffle(nodes);
-            LogUtil.info("Загружено %s классов из исходного файла", nodes.size());
-        }
+        });
     }
 
     public void findStrings() {
-        for (ClassNode node : nodes) {
-            for (MethodNode method : node.methods) {
-                for (AbstractInsnNode instruction : method.instructions) {
-                    if (instruction.getType() == AbstractInsnNode.LDC_INSN) {
-                        LdcInsnNode string = (LdcInsnNode) instruction;
-                        if (string.cst instanceof String) {
-                            stringSet.add(AsmUtil.toAsmName((String) string.cst));
+        for (InputJar nextJar : sources) {
+            for (ClassNode node : nextJar.nodes) {
+                for (MethodNode method : node.methods) {
+                    for (AbstractInsnNode instruction : method.instructions) {
+                        if (instruction.getType() == AbstractInsnNode.LDC_INSN) {
+                            LdcInsnNode string = (LdcInsnNode) instruction;
+                            if (string.cst instanceof String) {
+                                ldcMap.put(AsmUtil.toAsmName((String) string.cst), null);
+                            }
                         }
                     }
                 }
@@ -89,48 +101,88 @@ public class Replacer {
         }
     }
 
+    protected ProguardConfigPart createPart(String findName, boolean bypass) {
+        if (bypass || ldcMap.containsKey(findName)) {
+            ProguardConfigPart configPart = new ProguardConfigPart(findName);
+            String nextGenerated = UniqueStringGenerator.get(id++);
+
+            configPart.newOwner = nextGenerated;
+            ldcMap.put(findName, nextGenerated);
+            return configPart;
+        }
+        return null;
+    }
+
     public void replaceNames() {
-        int id = Short.MAX_VALUE;
+        String nextGenerated;
+        for (InputJar nextJar : sources) {
+            for (ClassNode node : nextJar.nodes) {
+                ProguardConfigPart configPart = null;
 
-        for (ClassNode node : nodes) {
-            ProguardConfigPart configPart = null;
-
-            if (stringSet.contains(node.name)) {
-                configPart = new ProguardConfigPart(node.name);
-                configPart.newOwner = UniqueStringGenerator.get(id++);
-            }
-
-            for (MethodNode method : node.methods) {
-                if (stringSet.contains(method.name)) {
-                    if (configPart == null) {
-                        configPart = new ProguardConfigPart(node.name);
-                        configPart.newOwner = UniqueStringGenerator.get(id++);
-                    }
-
-                    configPart.methods.put(new NodeData(method), UniqueStringGenerator.get(id++));
+                if (ldcMap.containsKey(node.name)) {
+                    configPart = createPart(node.name, false);
                 }
-            }
 
-            for (FieldNode field : node.fields) {
-                if (stringSet.contains(field.name)) {
-                    if (configPart == null) {
-                        configPart = new ProguardConfigPart(node.name);
-                        configPart.newOwner = UniqueStringGenerator.get(id++);
-                    }
-
-                    configPart.fields.put(new NodeData(field), UniqueStringGenerator.get(id++));
+                if (ldcMap.containsKey(AsmUtil.toPointName(node.name))) {
+                    configPart = createPart(AsmUtil.toPointName(node.name), false);
                 }
-            }
 
-            if (configPart != null) {
-                proguardConfig.add(configPart);
+                for (MethodNode method : node.methods) {
+                    if (ldcMap.containsKey(method.name)) {
+                        configPart = createPart(node.name, true);
+
+                        nextGenerated = UniqueStringGenerator.get(id++);
+                        configPart.methods.put(new NodeData(method), nextGenerated);
+                        ldcMap.put(method.name, nextGenerated);
+                    }
+                }
+
+                for (FieldNode field : node.fields) {
+                    if (ldcMap.containsKey(field.name)) {
+                        configPart = createPart(node.name, true);
+
+                        nextGenerated = UniqueStringGenerator.get(id++);
+                        configPart.fields.put(new NodeData(field), nextGenerated);
+                        ldcMap.put(field.name, nextGenerated);
+                    }
+                }
+
+                if (configPart != null) {
+                    proguardConfig.add(configPart);
+                }
             }
         }
     }
 
     public void saveData() {
         try {
-            Files.createDirectories(proguardConfigFile.getParent());
+            Files.createDirectories(proguardConfigPath.getParent());
+
+            for (InputJar source : sources) {
+                ZipOutputStream output = IOUtil.newZipOutput(source.path);
+
+                for (ClassNode node : source.nodes) {
+                    ClassWriter writer = new ClassWriter(ClassWriter.COMPUTE_MAXS);
+
+                    for (MethodNode method : node.methods) {
+                        AsmUtil.processLDCString(method, (ldcNode, s) -> ldcNode.cst = ldcMap.getOrDefault((String) ldcNode.cst, (String) ldcNode.cst));
+                    }
+                    byte[] array = writer.toByteArray();
+
+                    ZipEntry zipEntry = IOUtil.newZipEntry(node.name + ".class");
+                    output.putNextEntry(zipEntry);
+                    output.write(array);
+                }
+
+                for (Map.Entry<String, ByteBuffer> entry : source.data.entrySet()) {
+                    ZipEntry zipEntry = IOUtil.newZipEntry(entry.getKey());
+
+                    output.putNextEntry(zipEntry);
+                    output.write(entry.getValue().array());
+                }
+
+            }
+
             List<String> data = new ArrayList<>();
 
             String tabSymbol = "    "; // 4 spaces
@@ -172,7 +224,7 @@ public class Replacer {
 
             }
 
-            Files.write(proguardConfigFile, data, StandardOpenOption.CREATE, StandardOpenOption.WRITE, StandardOpenOption.TRUNCATE_EXISTING);
+            Files.write(proguardConfigPath, data, StandardOpenOption.CREATE, StandardOpenOption.WRITE, StandardOpenOption.TRUNCATE_EXISTING);
         } catch (IOException e) {
             e.printStackTrace();
         }
@@ -206,6 +258,16 @@ public class Replacer {
         public NodeData(String name, String desc) {
             this.name = name;
             this.desc = desc;
+        }
+    }
+
+    private static class InputJar {
+        public final Path path;
+        public final List<ClassNode> nodes = new ArrayList<>();
+        public final Map<String, ByteBuffer> data = new HashMap<>();
+
+        public InputJar(Path path) {
+            this.path = path;
         }
     }
 }
