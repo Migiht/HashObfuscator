@@ -68,7 +68,7 @@ public class Replacer {
 
                                     jar.nodes.add(node);
                                 } else {
-                                    jar.data.add(buffer);
+                                    jar.data.put(entry.getName(), buffer);
                                 }
                                 sources.add(jar);
 
