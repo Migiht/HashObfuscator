@@ -1,6 +1,8 @@
+package extension;
+
 public class Main {
     public static void main(String[] args) throws Throwable {
-        Replacer replacer = new Replacer("C:\\Users\\Might\\IdeaProjects\\ProGuardTest\\out\\artifacts\\ProGuardTest_jar\\ProGuardTest.jar", "./proMappings.txt");
+        Replacer replacer = new Replacer(args[0], args[1]);
         replacer.loadInput();
         replacer.findStrings();
         replacer.replaceNames();

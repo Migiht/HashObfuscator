@@ -1,3 +1,5 @@
+package extension;
+
 import by.m1ght.util.AsmUtil;
 import by.m1ght.util.IOUtil;
 import by.m1ght.util.LogUtil;
@@ -28,8 +30,8 @@ public class Replacer {
     private int id = Short.MAX_VALUE;
 
     public Replacer(String srcPath, String proguardCfgPath) {
-        this.srcPath = Paths.get(srcPath);
-        this.proguardConfigPath = Paths.get(proguardCfgPath);
+        this.srcPath = Paths.get(srcPath).toAbsolutePath();
+        this.proguardConfigPath = Paths.get(proguardCfgPath).toAbsolutePath();
     }
 
     public void loadInput() throws Throwable {
@@ -60,7 +62,7 @@ public class Replacer {
                                     }
                                 }
 
-                                InputJar jar = new InputJar(file);
+                                InputJar jar = new InputJar(file.toAbsolutePath());
                                 if (name.endsWith(".class")) {
                                     ClassReader reader = new ClassReader(buffer.array());
                                     ClassNode node = new ClassNode();
@@ -159,7 +161,7 @@ public class Replacer {
             Files.createDirectories(proguardConfigPath.getParent());
 
             for (InputJar source : sources) {
-                ZipOutputStream output = IOUtil.newZipOutput(source.path);
+                ZipOutputStream output = IOUtil.newZipOutput(source.path.resolveSibling(source.path.getFileName() + "-obf"));
 
                 for (ClassNode node : source.nodes) {
                     ClassWriter writer = new ClassWriter(ClassWriter.COMPUTE_MAXS);
