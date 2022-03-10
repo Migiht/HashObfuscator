@@ -41,7 +41,10 @@ public class Replacer {
                 try (ZipArchiveInputStream stream = new ZipArchiveInputStream(Files.newInputStream(file))) {
                     ReadableByteChannel channel = Channels.newChannel(stream);
 
+                    InputJar jar = new InputJar(file.toAbsolutePath());
+                    sources.add(jar);
                     ZipEntry entry;
+
                     while ((entry = stream.getNextZipEntry()) != null) {
 
                         if (!entry.isDirectory()) {
@@ -62,7 +65,6 @@ public class Replacer {
                                     }
                                 }
 
-                                InputJar jar = new InputJar(file.toAbsolutePath());
                                 if (name.endsWith(".class")) {
                                     ClassReader reader = new ClassReader(buffer.array());
                                     ClassNode node = new ClassNode();
@@ -72,7 +74,6 @@ public class Replacer {
                                 } else {
                                     jar.data.put(entry.getName(), buffer);
                                 }
-                                sources.add(jar);
 
                             } catch (Throwable e) {
                                 e.printStackTrace();
@@ -161,7 +162,7 @@ public class Replacer {
             Files.createDirectories(proguardConfigPath.getParent());
 
             for (InputJar source : sources) {
-                ZipOutputStream output = IOUtil.newZipOutput(source.path.resolveSibling(source.path.getFileName() + "-obf"));
+                ZipOutputStream output = IOUtil.newZipOutput(source.path.resolveSibling(source.path.getFileName() + "-obf.jar"));
 
                 for (ClassNode node : source.nodes) {
                     ClassWriter writer = new ClassWriter(ClassWriter.COMPUTE_MAXS);
@@ -174,6 +175,7 @@ public class Replacer {
                     ZipEntry zipEntry = IOUtil.newZipEntry(node.name + ".class");
                     output.putNextEntry(zipEntry);
                     output.write(array);
+                    output.closeEntry();
                 }
 
                 for (Map.Entry<String, ByteBuffer> entry : source.data.entrySet()) {
@@ -181,7 +183,9 @@ public class Replacer {
 
                     output.putNextEntry(zipEntry);
                     output.write(entry.getValue().array());
+                    output.closeEntry();
                 }
+                output.close();
 
             }
 

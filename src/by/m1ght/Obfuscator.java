@@ -197,6 +197,7 @@ public final class Obfuscator implements Runnable {
                         synchronized (output) {
                             output.putNextEntry(entry);
                             output.write(value.array(), 0, value.position());
+                            output.closeEntry();
                         }
 
                     } catch (Throwable throwable) {
@@ -217,6 +218,7 @@ public final class Obfuscator implements Runnable {
                     synchronized (output) {
                         output.putNextEntry(entry);
                         output.write(array);
+                        output.closeEntry();
                     }
                 } catch (Throwable throwable) {
                     throwable.printStackTrace();
