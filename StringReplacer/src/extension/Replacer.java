@@ -23,6 +23,9 @@ import java.util.zip.ZipOutputStream;
 
 public class Replacer {
     public static final String OBF_SUFFIX = "-patched.jar";
+    public static final String PROGUARD_TAB = "    ";
+    public static final String PROGUARD_SPLIT = " -> ";
+
     private final Path srcPath;
 
     private final List<InputJar> sources = new ArrayList<>();
@@ -30,8 +33,7 @@ public class Replacer {
 
     private final List<ProguardConfigSegment> proguardConfig = new ArrayList<>();
     private final Path proguardConfigPath;
-
-    private int id = Short.MAX_VALUE;
+    public static int nextID = Short.MAX_VALUE;
 
     public Replacer(String srcPath, String proguardCfgPath) {
         this.srcPath = Paths.get(srcPath).toAbsolutePath();
@@ -59,7 +61,7 @@ public class Replacer {
                             try {
                                 ByteBuffer buffer = ByteBuffer.wrap(new byte[(int) entry.getSize()]);
 
-                                for (;;) {
+                                for (; ; ) {
                                     if (channel.read(buffer) <= 0 && buffer.hasRemaining()) {
                                         buffer.limit(buffer.position());
                                         buffer.flip();
@@ -98,57 +100,43 @@ public class Replacer {
         for (InputJar nextJar : sources) {
             for (ClassNode node : nextJar.nodes) {
                 for (MethodNode method : node.methods) {
-                    for (AbstractInsnNode instruction : method.instructions) {
-                        if (instruction.getType() == AbstractInsnNode.LDC_INSN) {
-                            LdcInsnNode string = (LdcInsnNode) instruction;
-                            if (string.cst instanceof String) {
-                                ldcMap.put(AsmUtil.toAsmName((String) string.cst), null);
-                            }
-                        }
-                    }
+                    AsmUtil.processLDCString(method, (ldcNode, s) -> ldcMap.put(AsmUtil.toAsmName(s), null));
                 }
             }
         }
     }
 
-    protected ProguardConfigSegment createPart(ProguardConfigSegment segment, String findName, boolean bypass) {
-        if (segment == null && (bypass || ldcMap.containsKey(findName))) {
-            ProguardConfigSegment configPart = new ProguardConfigSegment(findName);
-            String nextGenerated = UniqueStringGenerator.get(id++);
-
-            configPart.newOwner = nextGenerated;
-            ldcMap.put(findName, nextGenerated);
-            return configPart;
-        }
-        return segment;
-    }
-
     public void replaceNames() {
-        String nextGenerated;
         for (InputJar nextJar : sources) {
             for (ClassNode node : nextJar.nodes) {
                 ProguardConfigSegment segment = null;
 
-                segment = createPart(segment, node.name, false);
-                segment = createPart(segment, AsmUtil.toPointName(node.name), false);
+                if (ldcMap.containsKey(node.name) || ldcMap.containsKey(AsmUtil.toPointName(node.name))) {
+                    ProguardConfigSegment configPart = new ProguardConfigSegment(node.name, UniqueStringGenerator.get(nextID++));
+                    ldcMap.put(configPart.owner, configPart.newOwner);
+                    ldcMap.put(AsmUtil.toPointName(configPart.owner), configPart.newOwner);
+                }
 
                 for (MethodNode method : node.methods) {
                     if (ldcMap.containsKey(method.name)) {
-                        segment = createPart(segment, node.name, true);
-
-                        nextGenerated = UniqueStringGenerator.get(id++);
-                        segment.methods.put(new NodeData(method), nextGenerated);
-                        ldcMap.put(method.name, nextGenerated);
+                        if (segment == null) {
+                            segment = new ProguardConfigSegment(node.name, UniqueStringGenerator.get(nextID++));
+                            ldcMap.put(segment.owner, segment.newOwner);
+                        }
+                        ldcMap.put(method.name, UniqueStringGenerator.get(nextID++));
+                        segment.methods.add(new NodeNameDesc(method, method.name));
                     }
                 }
 
                 for (FieldNode field : node.fields) {
                     if (ldcMap.containsKey(field.name)) {
-                        segment = createPart(segment, node.name, true);
+                        if (segment == null) {
+                            segment = new ProguardConfigSegment(node.name, UniqueStringGenerator.get(nextID++));
+                            ldcMap.put(segment.owner, segment.newOwner);
+                        }
 
-                        nextGenerated = UniqueStringGenerator.get(id++);
-                        segment.fields.put(new NodeData(field), nextGenerated);
-                        ldcMap.put(field.name, nextGenerated);
+                        ldcMap.put(field.name, UniqueStringGenerator.get(nextID++));
+                        segment.fields.add(new NodeNameDesc(field, ldcMap.get(field.name)));
                     }
                 }
 
@@ -160,7 +148,7 @@ public class Replacer {
     }
 
     public void saveData() {
-        System.out.println(ldcMap.toString());
+        System.out.println(ldcMap);
         try {
             Files.createDirectories(proguardConfigPath.getParent());
 
@@ -179,11 +167,11 @@ public class Replacer {
                         });
                     }
                     node.accept(writer);
-                    byte[] array = writer.toByteArray();
 
                     ZipEntry zipEntry = IOUtil.newZipEntry(node.name + ".class");
+
                     output.putNextEntry(zipEntry);
-                    output.write(array);
+                    output.write(writer.toByteArray());
                     output.closeEntry();
                 }
 
@@ -197,47 +185,11 @@ public class Replacer {
                 output.close();
             }
 
+
             List<String> data = new ArrayList<>();
-
-            String tabSymbol = "    "; // 4 spaces
-
-            for (ProguardConfigSegment part : proguardConfig) {
-                data.add(part.owner + " -> " + part.newOwner + ":");
-
-                for (Map.Entry<NodeData, String> entry : part.methods.entrySet()) {
-                    StringBuilder args = new StringBuilder("(");
-                    Type[] argumentTypes = Type.getArgumentTypes(entry.getKey().desc);
-
-                    for (int i = 0; i < argumentTypes.length; i++) {
-                        Type argumentType = argumentTypes[i];
-                        args.append(argumentType.getClassName());
-                        if (i + 1 < argumentTypes.length) {
-                            args.append(',');
-                        }
-                    }
-                    args.append(")");
-
-                    data.add(tabSymbol
-                            + Type.getReturnType(entry.getKey().desc).getClassName()
-                            + " " + entry.getKey().name
-                            + args
-                            + " -> "
-                            + entry.getValue()
-                    );
-                }
-
-                for (Map.Entry<NodeData, String> entry : part.fields.entrySet()) {
-                    data.add(tabSymbol +
-                            Type.getType(entry.getKey().desc).getClassName()
-                            + " "
-                            + entry.getKey().name
-                            + " -> "
-                            + entry.getValue()
-                    );
-                }
-
+            for (ProguardConfigSegment cfg : proguardConfig) {
+                data.addAll(cfg.serialize());
             }
-
             Files.write(proguardConfigPath, data, StandardOpenOption.CREATE, StandardOpenOption.WRITE, StandardOpenOption.TRUNCATE_EXISTING);
         } catch (IOException e) {
             e.printStackTrace();
@@ -246,32 +198,128 @@ public class Replacer {
 
     private static class ProguardConfigSegment {
         public final String owner;
-        public String newOwner;
-        public final Map<NodeData, String> methods = new HashMap<>();
-        public final Map<NodeData, String> fields = new HashMap<>();
+        public final String newOwner;
+        public final List<NodeNameDesc> methods = new LinkedList<>();
+        public final List<NodeNameDesc> fields = new LinkedList<>();
 
-        public ProguardConfigSegment(String owner) {
+        public ProguardConfigSegment(String owner, String newOwner) {
             this.owner = AsmUtil.toPointName(owner);
+            this.newOwner = AsmUtil.toPointName(newOwner);
+        }
+
+        public static List<ProguardConfigSegment> deserialize(List<String> input) {
+            List<ProguardConfigSegment> segments = new ArrayList<>();
+            for (String nextStr : input) {
+                // if part of a class
+                if (nextStr.startsWith(" ")) {
+                    ProguardConfigSegment last = segments.get(segments.size() - 1);
+
+                    String[] oldNewName = nextStr.split(PROGUARD_SPLIT);
+                    String[] descNameArgs = oldNewName[0].split(" ");
+                    NodeNameDesc node = new NodeNameDesc(oldNewName[0], oldNewName[1]);
+
+                    // is a method or else field
+                    if (nextStr.contains("(")) {
+                        node.desc = descNameArgs[0];
+                        last.methods.add(node);
+                   } else {
+                        node.returnType = descNameArgs[0];
+                        node.desc = last.splitName(descNameArgs[1]);
+                        last.fields.add(node);
+                   }
+                } else { // this is a class
+                    String[] parts = nextStr.split(PROGUARD_SPLIT);
+                    if (parts.length != 2) throw new RuntimeException("Fucking broken cfg");
+                    segments.add(new ProguardConfigSegment(parts[0], parts[1]));
+                }
+            }
+            return segments;
+        }
+
+        public String parseMethodArg(String desc) {
+            StringBuilder args = new StringBuilder("(");
+            Type[] argumentTypes = Type.getArgumentTypes(desc);
+
+            for (int i = 0; i < argumentTypes.length; i++) {
+                Type argumentType = argumentTypes[i];
+                args.append(argumentType.getClassName());
+                if (i + 1 < argumentTypes.length) {
+                    args.append(',');
+                }
+            }
+            args.append(")");
+            return args.toString();
+        }
+
+        public String splitName(String nameDesc) {
+            return nameDesc.substring(0, nameDesc.indexOf('('));
+        }
+
+        public void convertDesc() {
+            for (NodeNameDesc method : methods) {
+                method.returnType = Type.getReturnType(method.desc).getClassName();
+                method.desc = parseMethodArg(method.desc);
+            }
+
+            for (NodeNameDesc field : fields) {
+                field.desc = Type.getReturnType(field.desc).getClassName();
+            }
+        }
+
+        public List<String> serialize() {
+            List<String> data = new ArrayList<>();
+            data.add(this.owner
+                    + PROGUARD_SPLIT // ->
+                    + this.newOwner + ":");
+
+            for (NodeNameDesc entry : this.methods) {
+
+                data.add(PROGUARD_TAB
+                        + entry.returnType
+                        + " "
+                        + entry.name
+                        + entry.desc
+                        + PROGUARD_SPLIT // ->
+                        + entry.newName
+                );
+            }
+
+            for (NodeNameDesc entry : this.fields) {
+                data.add(PROGUARD_TAB +
+                        Type.getType(entry.desc).getClassName()
+                        + " "
+                        + entry.name
+                        + PROGUARD_SPLIT // ->
+                        + entry.newName
+                );
+            }
+            return data;
         }
     }
 
-    private static class NodeData {
+    private static class NodeNameDesc {
         public final String name;
-        public final String desc;
+        public String desc;
+        public final String newName;
 
-        public NodeData(MethodNode node) {
+        // For methods only
+        public String returnType;
+
+        public NodeNameDesc(MethodNode node, String newName) {
             this.name = node.name;
             this.desc = AsmUtil.toPointName(node.desc);
+            this.newName = newName;
         }
 
-        public NodeData(FieldNode node) {
+        public NodeNameDesc(FieldNode node, String newName) {
             this.name = node.name;
             this.desc = AsmUtil.toPointName(node.desc);
+            this.newName = newName;
         }
 
-        public NodeData(String name, String desc) {
+        public NodeNameDesc(String name, String newName) {
             this.name = name;
-            this.desc = desc;
+            this.newName = newName;
         }
     }
 
