@@ -4,7 +4,7 @@ import by.m1ght.util.AsmUtil;
 import by.m1ght.util.IOUtil;
 import by.m1ght.util.LogUtil;
 import by.m1ght.util.UniqueStringGenerator;
-import org.apache.commons.compress.archivers.zip.ZipArchiveInputStream;
+import it.unimi.dsi.fastutil.objects.Object2ObjectArrayMap;
 import org.objectweb.asm.ClassReader;
 import org.objectweb.asm.ClassWriter;
 import org.objectweb.asm.Type;
@@ -18,15 +18,19 @@ import java.nio.file.*;
 import java.nio.file.attribute.BasicFileAttributes;
 import java.util.*;
 import java.util.zip.ZipEntry;
+import java.util.zip.ZipInputStream;
 import java.util.zip.ZipOutputStream;
 
 public class Replacer {
+    public static final String OBF_SUFFIX = "-patched.jar";
     private final Path srcPath;
 
     private final List<InputJar> sources = new ArrayList<>();
     private final Map<String, String> ldcMap = new HashMap<>();
-    private final List<ProguardConfigPart> proguardConfig = new ArrayList<>();
+
+    private final List<ProguardConfigSegment> proguardConfig = new ArrayList<>();
     private final Path proguardConfigPath;
+
     private int id = Short.MAX_VALUE;
 
     public Replacer(String srcPath, String proguardCfgPath) {
@@ -38,20 +42,22 @@ public class Replacer {
         Files.walkFileTree(srcPath, new SimpleFileVisitor<Path>() {
             @Override
             public FileVisitResult visitFile(Path file, BasicFileAttributes attrs) throws IOException {
-                try (ZipArchiveInputStream stream = new ZipArchiveInputStream(Files.newInputStream(file))) {
+                if (file.toString().endsWith(OBF_SUFFIX)) return super.visitFile(file, attrs);
+
+                try (ZipInputStream stream = new ZipInputStream(Files.newInputStream(file))) {
                     ReadableByteChannel channel = Channels.newChannel(stream);
 
                     InputJar jar = new InputJar(file.toAbsolutePath());
                     sources.add(jar);
                     ZipEntry entry;
 
-                    while ((entry = stream.getNextZipEntry()) != null) {
+                    while ((entry = stream.getNextEntry()) != null) {
 
                         if (!entry.isDirectory()) {
                             String name = entry.getName();
 
                             try {
-                                ByteBuffer buffer = ByteBuffer.wrap(new byte[4096]);
+                                ByteBuffer buffer = ByteBuffer.wrap(new byte[(int) entry.getSize()]);
 
                                 for (;;) {
                                     if (channel.read(buffer) <= 0 && buffer.hasRemaining()) {
@@ -66,7 +72,7 @@ public class Replacer {
                                 }
 
                                 if (name.endsWith(".class")) {
-                                    ClassReader reader = new ClassReader(buffer.array());
+                                    ClassReader reader = new ClassReader(buffer.array(), 0, buffer.limit());
                                     ClassNode node = new ClassNode();
                                     reader.accept(node, AsmUtil.getInputReaderFlags());
 
@@ -81,6 +87,7 @@ public class Replacer {
                             }
                         }
                     }
+                    channel.close();
                 }
                 return super.visitFile(file, attrs);
             }
@@ -104,72 +111,74 @@ public class Replacer {
         }
     }
 
-    protected ProguardConfigPart createPart(String findName, boolean bypass) {
-        if (bypass || ldcMap.containsKey(findName)) {
-            ProguardConfigPart configPart = new ProguardConfigPart(findName);
+    protected ProguardConfigSegment createPart(ProguardConfigSegment segment, String findName, boolean bypass) {
+        if (segment == null && (bypass || ldcMap.containsKey(findName))) {
+            ProguardConfigSegment configPart = new ProguardConfigSegment(findName);
             String nextGenerated = UniqueStringGenerator.get(id++);
 
             configPart.newOwner = nextGenerated;
             ldcMap.put(findName, nextGenerated);
             return configPart;
         }
-        return null;
+        return segment;
     }
 
     public void replaceNames() {
         String nextGenerated;
         for (InputJar nextJar : sources) {
             for (ClassNode node : nextJar.nodes) {
-                ProguardConfigPart configPart = null;
+                ProguardConfigSegment segment = null;
 
-                if (ldcMap.containsKey(node.name)) {
-                    configPart = createPart(node.name, false);
-                }
-
-                if (ldcMap.containsKey(AsmUtil.toPointName(node.name))) {
-                    configPart = createPart(AsmUtil.toPointName(node.name), false);
-                }
+                segment = createPart(segment, node.name, false);
+                segment = createPart(segment, AsmUtil.toPointName(node.name), false);
 
                 for (MethodNode method : node.methods) {
                     if (ldcMap.containsKey(method.name)) {
-                        configPart = createPart(node.name, true);
+                        segment = createPart(segment, node.name, true);
 
                         nextGenerated = UniqueStringGenerator.get(id++);
-                        configPart.methods.put(new NodeData(method), nextGenerated);
+                        segment.methods.put(new NodeData(method), nextGenerated);
                         ldcMap.put(method.name, nextGenerated);
                     }
                 }
 
                 for (FieldNode field : node.fields) {
                     if (ldcMap.containsKey(field.name)) {
-                        configPart = createPart(node.name, true);
+                        segment = createPart(segment, node.name, true);
 
                         nextGenerated = UniqueStringGenerator.get(id++);
-                        configPart.fields.put(new NodeData(field), nextGenerated);
+                        segment.fields.put(new NodeData(field), nextGenerated);
                         ldcMap.put(field.name, nextGenerated);
                     }
                 }
 
-                if (configPart != null) {
-                    proguardConfig.add(configPart);
+                if (segment != null) {
+                    proguardConfig.add(segment);
                 }
             }
         }
     }
 
     public void saveData() {
+        System.out.println(ldcMap.toString());
         try {
             Files.createDirectories(proguardConfigPath.getParent());
 
             for (InputJar source : sources) {
-                ZipOutputStream output = IOUtil.newZipOutput(source.path.resolveSibling(source.path.getFileName() + "-obf.jar"));
+                ZipOutputStream output = IOUtil.newZipOutput(source.path.resolveSibling(source.path.getFileName() + OBF_SUFFIX));
 
                 for (ClassNode node : source.nodes) {
                     ClassWriter writer = new ClassWriter(ClassWriter.COMPUTE_MAXS);
 
                     for (MethodNode method : node.methods) {
-                        AsmUtil.processLDCString(method, (ldcNode, s) -> ldcNode.cst = ldcMap.getOrDefault((String) ldcNode.cst, (String) ldcNode.cst));
+                        AsmUtil.processLDCString(method, (ldcNode, s) -> {
+                            String newName = ldcMap.get((String) ldcNode.cst);
+                            if (newName != null) {
+                                ldcNode.cst = newName;
+                            }
+                        });
                     }
+                    node.accept(writer);
                     byte[] array = writer.toByteArray();
 
                     ZipEntry zipEntry = IOUtil.newZipEntry(node.name + ".class");
@@ -186,14 +195,13 @@ public class Replacer {
                     output.closeEntry();
                 }
                 output.close();
-
             }
 
             List<String> data = new ArrayList<>();
 
             String tabSymbol = "    "; // 4 spaces
 
-            for (ProguardConfigPart part : proguardConfig) {
+            for (ProguardConfigSegment part : proguardConfig) {
                 data.add(part.owner + " -> " + part.newOwner + ":");
 
                 for (Map.Entry<NodeData, String> entry : part.methods.entrySet()) {
@@ -236,13 +244,13 @@ public class Replacer {
         }
     }
 
-    private static class ProguardConfigPart {
+    private static class ProguardConfigSegment {
         public final String owner;
         public String newOwner;
         public final Map<NodeData, String> methods = new HashMap<>();
         public final Map<NodeData, String> fields = new HashMap<>();
 
-        public ProguardConfigPart(String owner) {
+        public ProguardConfigSegment(String owner) {
             this.owner = AsmUtil.toPointName(owner);
         }
     }
@@ -270,7 +278,7 @@ public class Replacer {
     private static class InputJar {
         public final Path path;
         public final List<ClassNode> nodes = new ArrayList<>();
-        public final Map<String, ByteBuffer> data = new HashMap<>();
+        public final Map<String, ByteBuffer> data = new Object2ObjectArrayMap<>();
 
         public InputJar(Path path) {
             this.path = path;
