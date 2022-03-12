@@ -23,17 +23,17 @@ import java.util.zip.ZipOutputStream;
 
 public class Replacer {
     public static final String OBF_SUFFIX = "-patched.jar";
-    public static final String PROGUARD_TAB = "    ";
-    public static final String PROGUARD_SPLIT = " -> ";
+    public static final String SYMBOL_TAB = "    ";
+    public static final String SYMBOL_SPLIT = " -> ";
 
     private final Path srcPath;
 
     private final List<InputJar> sources = new ArrayList<>();
     private final Map<String, String> ldcMap = new HashMap<>();
 
-    private final List<ProguardConfigSegment> proguardConfig = new ArrayList<>();
+    private final List<ProguardConfigSegment> configSegments = new ArrayList<>();
     private final Path proguardConfigPath;
-    public static int nextID = Short.MAX_VALUE;
+    private int nextID = Short.MAX_VALUE;
 
     public Replacer(String srcPath, String proguardCfgPath) {
         this.srcPath = Paths.get(srcPath).toAbsolutePath();
@@ -106,7 +106,42 @@ public class Replacer {
         }
     }
 
-    public void replaceNames() {
+    public void importMappings(String path) throws IOException {
+        if (Files.exists(Paths.get(path)) && !Files.isDirectory(Paths.get(path))) {
+            List<String> input = Files.readAllLines(Paths.get(path));
+
+            configSegments.addAll(ProguardConfigSegment.deserialize(input));
+        }
+    }
+
+    public void replaceConfigNames() {
+        for (ProguardConfigSegment segment : configSegments) {
+            String newOwner = generateSameName(segment.owner);
+            if (newOwner == segment.owner) {
+                newOwner = generateSameName(AsmUtil.toPointName(segment.owner));
+            }
+            segment.newOwner = newOwner;
+
+            for (NodeNameDesc method : segment.methods) {
+                method.newName = generateSameName(method.name);
+            }
+
+            for (NodeNameDesc field : segment.fields) {
+                field.newName = generateSameName(field.name);
+            }
+        }
+    }
+
+    protected String generateSameName(String oldName) {
+        if (ldcMap.containsKey(oldName)) {
+            String generated = UniqueStringGenerator.get(nextID++);
+            ldcMap.replace(oldName, generated);
+            return generated;
+        }
+        return oldName;
+    }
+
+    public void generateConfigOld() {
         for (InputJar nextJar : sources) {
             for (ClassNode node : nextJar.nodes) {
                 ProguardConfigSegment segment = null;
@@ -141,7 +176,7 @@ public class Replacer {
                 }
 
                 if (segment != null) {
-                    proguardConfig.add(segment);
+                    configSegments.add(segment);
                 }
             }
         }
@@ -185,9 +220,8 @@ public class Replacer {
                 output.close();
             }
 
-
             List<String> data = new ArrayList<>();
-            for (ProguardConfigSegment cfg : proguardConfig) {
+            for (ProguardConfigSegment cfg : configSegments) {
                 data.addAll(cfg.serialize());
             }
             Files.write(proguardConfigPath, data, StandardOpenOption.CREATE, StandardOpenOption.WRITE, StandardOpenOption.TRUNCATE_EXISTING);
@@ -198,7 +232,7 @@ public class Replacer {
 
     private static class ProguardConfigSegment {
         public final String owner;
-        public final String newOwner;
+        public String newOwner;
         public final List<NodeNameDesc> methods = new LinkedList<>();
         public final List<NodeNameDesc> fields = new LinkedList<>();
 
@@ -215,27 +249,29 @@ public class Replacer {
                     ProguardConfigSegment last = segments.get(segments.size() - 1);
 
                     //TODO FIX
-                    String[] oldNewName = nextStr.split(PROGUARD_SPLIT);
+                    String[] oldNewName = nextStr.split(SYMBOL_SPLIT);
                     String[] descNameArgs = oldNewName[0].split(" ");
                     NodeNameDesc node;
-
-                    // is a method
+                    //                      0        name               desc
+                    // it's a method     boolean doSomeWork(long,int[],java.lang.String)
                     if (nextStr.contains("(")) {
-                        node = new NodeNameDesc(oldNewName[0], oldNewName[1]);
-
-                        node.desc = descNameArgs[0];
-                        node.returnType = descNameArgs[0];
-                        last.methods.add(node);
-                   } else { // Is's a field
-                        node = new NodeNameDesc(oldNewName[0], oldNewName[1]);
+                        node = new NodeNameDesc(last.splitName(descNameArgs[1]), oldNewName[1]);
 
                         node.desc = last.splitDesc(descNameArgs[1]);
+                        node.returnType = descNameArgs[0];
+                        last.methods.add(node);
+                   } else {
+                        //                    0        1
+                        // It's a field     byte[] mainData
+                        node = new NodeNameDesc(descNameArgs[1], oldNewName[1]);
+
+                        node.desc = descNameArgs[0];
                         last.fields.add(node);
                    }
                 } else { // this is a class
                     String[] parts = nextStr
                             .substring(0, nextStr.length() - 1) // remove last char
-                            .split(PROGUARD_SPLIT);
+                            .split(SYMBOL_SPLIT);
 
                     if (parts.length != 2) throw new RuntimeException("Fucking broken cfg");
                     segments.add(new ProguardConfigSegment(parts[0], parts[1]));
@@ -267,7 +303,7 @@ public class Replacer {
             return nameDesc.substring(nameDesc.indexOf('('));
         }
 
-        public void convertDesc() {
+        public void convertDescToProGuard() {
             for (NodeNameDesc method : methods) {
                 method.returnType = Type.getReturnType(method.desc).getClassName();
                 method.desc = parseMethodArg(method.desc);
@@ -281,27 +317,27 @@ public class Replacer {
         public List<String> serialize() {
             List<String> data = new ArrayList<>();
             data.add(this.owner
-                    + PROGUARD_SPLIT // ->
+                    + SYMBOL_SPLIT // ->
                     + this.newOwner + ":");
 
             for (NodeNameDesc entry : this.methods) {
 
-                data.add(PROGUARD_TAB
+                data.add(SYMBOL_TAB
                         + entry.returnType
                         + " "
                         + entry.name
                         + entry.desc
-                        + PROGUARD_SPLIT // ->
+                        + SYMBOL_SPLIT // ->
                         + entry.newName
                 );
             }
 
             for (NodeNameDesc entry : this.fields) {
-                data.add(PROGUARD_TAB +
+                data.add(SYMBOL_TAB +
                         Type.getType(entry.desc).getClassName()
                         + " "
                         + entry.name
-                        + PROGUARD_SPLIT // ->
+                        + SYMBOL_SPLIT // ->
                         + entry.newName
                 );
             }
@@ -312,7 +348,7 @@ public class Replacer {
     private static class NodeNameDesc {
         public final String name;
         public String desc;
-        public final String newName;
+        public String newName;
 
         // For methods only
         public String returnType;

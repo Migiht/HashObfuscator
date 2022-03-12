@@ -5,7 +5,7 @@ public class Main {
         Replacer replacer = new Replacer(args[0], args[1]);
         replacer.loadInput();
         replacer.findStrings();
-        replacer.replaceNames();
+        replacer.generateConfigOld();
         replacer.saveData();
     }
 }
