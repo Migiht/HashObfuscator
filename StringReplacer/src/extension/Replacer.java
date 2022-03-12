@@ -214,21 +214,29 @@ public class Replacer {
                 if (nextStr.startsWith(" ")) {
                     ProguardConfigSegment last = segments.get(segments.size() - 1);
 
+                    //TODO FIX
                     String[] oldNewName = nextStr.split(PROGUARD_SPLIT);
                     String[] descNameArgs = oldNewName[0].split(" ");
-                    NodeNameDesc node = new NodeNameDesc(oldNewName[0], oldNewName[1]);
+                    NodeNameDesc node;
 
-                    // is a method or else field
+                    // is a method
                     if (nextStr.contains("(")) {
+                        node = new NodeNameDesc(oldNewName[0], oldNewName[1]);
+
                         node.desc = descNameArgs[0];
-                        last.methods.add(node);
-                   } else {
                         node.returnType = descNameArgs[0];
-                        node.desc = last.splitName(descNameArgs[1]);
+                        last.methods.add(node);
+                   } else { // Is's a field
+                        node = new NodeNameDesc(oldNewName[0], oldNewName[1]);
+
+                        node.desc = last.splitDesc(descNameArgs[1]);
                         last.fields.add(node);
                    }
                 } else { // this is a class
-                    String[] parts = nextStr.split(PROGUARD_SPLIT);
+                    String[] parts = nextStr
+                            .substring(0, nextStr.length() - 1) // remove last char
+                            .split(PROGUARD_SPLIT);
+
                     if (parts.length != 2) throw new RuntimeException("Fucking broken cfg");
                     segments.add(new ProguardConfigSegment(parts[0], parts[1]));
                 }
@@ -253,6 +261,10 @@ public class Replacer {
 
         public String splitName(String nameDesc) {
             return nameDesc.substring(0, nameDesc.indexOf('('));
+        }
+
+        public String splitDesc(String nameDesc) {
+            return nameDesc.substring(nameDesc.indexOf('('));
         }
 
         public void convertDesc() {
