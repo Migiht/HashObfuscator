@@ -5,7 +5,8 @@ public class Main {
         Replacer replacer = new Replacer(args[0], args[1]);
         replacer.loadInput();
         replacer.findStrings();
-        replacer.generateConfigOld();
+        replacer.importMappings("mappings.txt");
+        replacer.replaceConfigNames();
         replacer.saveData();
     }
 }

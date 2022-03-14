@@ -1,3 +1,4 @@
+import by.m1ght.util.AsmUtil;
 import org.objectweb.asm.Type;
 
 public class AsmTypeTest {
@@ -5,6 +6,7 @@ public class AsmTypeTest {
         System.out.println(Type.getReturnType("posis([B)V").getClassName());
         System.out.println(splitName("posis([B)V"));
         System.out.println(splitDesc("posis([B)V"));
+        System.out.println(AsmUtil.getReturnType("posos(I)Lfwef;"));
 }
 
 

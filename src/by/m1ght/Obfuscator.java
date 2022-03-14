@@ -102,8 +102,11 @@ public final class Obfuscator implements Runnable {
         transformers.add(new ClassRenamer());
         transformers.add(new LocalRenamer());
         transformers.add(new MethodRenamer());
+        transformers.add(new MethodRenamer.SuperRenamer());
+
         transformers.add(new INDYRenamer());
         transformers.add(new FieldRenamer());
+        transformers.add(new FieldRenamer.SuperRenamer());
     }
 
     private void computeExcludes() {

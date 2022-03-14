@@ -33,7 +33,6 @@ public class Replacer {
 
     private final List<ProguardConfigSegment> configSegments = new ArrayList<>();
     private final Path proguardConfigPath;
-    private int nextID = Short.MAX_VALUE;
 
     public Replacer(String srcPath, String proguardCfgPath) {
         this.srcPath = Paths.get(srcPath).toAbsolutePath();
@@ -44,7 +43,7 @@ public class Replacer {
         Files.walkFileTree(srcPath, new SimpleFileVisitor<Path>() {
             @Override
             public FileVisitResult visitFile(Path file, BasicFileAttributes attrs) throws IOException {
-                if (file.toString().endsWith(OBF_SUFFIX)) return super.visitFile(file, attrs);
+                if (file.toString().endsWith(OBF_SUFFIX) || !file.toString().endsWith(".jar")) return super.visitFile(file, attrs);
 
                 try (ZipInputStream stream = new ZipInputStream(Files.newInputStream(file))) {
                     ReadableByteChannel channel = Channels.newChannel(stream);
@@ -59,9 +58,9 @@ public class Replacer {
                             String name = entry.getName();
 
                             try {
-                                ByteBuffer buffer = ByteBuffer.wrap(new byte[(int) entry.getSize()]);
+                                ByteBuffer buffer = ByteBuffer.wrap(new byte[4096]);
 
-                                for (; ; ) {
+                                for (;;) {
                                     if (channel.read(buffer) <= 0 && buffer.hasRemaining()) {
                                         buffer.limit(buffer.position());
                                         buffer.flip();
@@ -111,37 +110,39 @@ public class Replacer {
             List<String> input = Files.readAllLines(Paths.get(path));
 
             configSegments.addAll(ProguardConfigSegment.deserialize(input));
+            System.out.println("Import from " + path + configSegments.size() + " segments");
         }
     }
 
     public void replaceConfigNames() {
+        int id = Short.MAX_VALUE;
         for (ProguardConfigSegment segment : configSegments) {
-            String newOwner = generateSameName(segment.owner);
-            if (newOwner == segment.owner) {
-                newOwner = generateSameName(AsmUtil.toPointName(segment.owner));
-            }
-            segment.newOwner = newOwner;
+
+            segment.newOwner = generateSameName(segment.owner, id);
+            segment.newOwner = generateSameName(AsmUtil.toPointName(segment.owner), id);
+            ++id;
 
             for (NodeNameDesc method : segment.methods) {
-                method.newName = generateSameName(method.name);
+                if (method.name.startsWith("<")) continue;
+                method.newName = generateSameName(method.name, id++);
             }
 
             for (NodeNameDesc field : segment.fields) {
-                field.newName = generateSameName(field.name);
+                field.newName = generateSameName(field.name, id++);
             }
         }
     }
 
-    protected String generateSameName(String oldName) {
+    protected String generateSameName(String oldName, int id) {
         if (ldcMap.containsKey(oldName)) {
-            String generated = UniqueStringGenerator.get(nextID++);
-            ldcMap.replace(oldName, generated);
-            return generated;
+            ldcMap.replace(oldName, null, UniqueStringGenerator.get(id));
+            return ldcMap.get(oldName);
         }
         return oldName;
     }
 
     public void generateConfigOld() {
+        int nextID = 0;
         for (InputJar nextJar : sources) {
             for (ClassNode node : nextJar.nodes) {
                 ProguardConfigSegment segment = null;
@@ -246,6 +247,7 @@ public class Replacer {
             for (String nextStr : input) {
                 // if part of a class
                 if (nextStr.startsWith(" ")) {
+                    nextStr = nextStr.replace(SYMBOL_TAB, "");
                     ProguardConfigSegment last = segments.get(segments.size() - 1);
 
                     //TODO FIX
@@ -255,6 +257,7 @@ public class Replacer {
                     //                      0        name               desc
                     // it's a method     boolean doSomeWork(long,int[],java.lang.String)
                     if (nextStr.contains("(")) {
+                        System.out.println(nextStr);
                         node = new NodeNameDesc(last.splitName(descNameArgs[1]), oldNewName[1]);
 
                         node.desc = last.splitDesc(descNameArgs[1]);
@@ -334,7 +337,7 @@ public class Replacer {
 
             for (NodeNameDesc entry : this.fields) {
                 data.add(SYMBOL_TAB +
-                        Type.getType(entry.desc).getClassName()
+                        entry.desc
                         + " "
                         + entry.name
                         + SYMBOL_SPLIT // ->

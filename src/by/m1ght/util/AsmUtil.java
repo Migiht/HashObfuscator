@@ -90,10 +90,12 @@ public final class AsmUtil {
 
     public static String getReturnType(String desc) {
         int index = desc.indexOf(')');
+        int objectIndex = desc.lastIndexOf(';');
         int length = desc.length();
 
+
         // Void check, if owner.methodName(...)V return V, else substr Ljava/lang/String; for example
-        if (index + 2 != desc.length()) {
+        if (objectIndex > index) {
             index = index + 1;
             length = length - 1;
         }
